@@ -19,16 +19,16 @@ export class SafeSphereUI {
 
       <div id="hud-overlay">
         <!-- Top Status Bar -->
-        <header class="top-bar glass-panel hud-interactive">
+        <header class="top-bar hud-panel hud-interactive">
           <div class="brand-section">
             <div class="brand-logo">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
               </svg>
             </div>
             <div>
               <div class="brand-title">SAFESPHERE AR</div>
-              <div class="brand-subtitle">COLLEGE PROJECT DEMO • SOLVETHON</div>
+              <div class="brand-subtitle">FIRE EMERGENCY RESPONSE TRAINING</div>
             </div>
           </div>
 
@@ -45,11 +45,7 @@ export class SafeSphereUI {
 
             <div id="timer-display" class="session-timer">00:00</div>
 
-            <button id="btn-voice-toggle" class="btn btn-icon-only" title="Toggle AI Voice Guidance">
-              <span id="voice-icon">🗣️</span>
-            </button>
-
-            <button id="btn-audio-toggle" class="btn btn-icon-only" title="Toggle Sound FX">
+            <button id="btn-audio-toggle" class="btn btn-icon-only" title="Toggle Sound">
               <span id="audio-icon">🔊</span>
             </button>
           </div>
@@ -58,10 +54,10 @@ export class SafeSphereUI {
         <!-- Mid Row: PASS Checklist & Hazard Gauges -->
         <div class="hud-mid-row">
           <!-- Left: PASS Protocol Card -->
-          <div class="pass-card glass-panel hud-interactive">
+          <div class="pass-card hud-panel hud-interactive">
             <div class="card-title">
               <span>PASS PROTOCOL</span>
-              <span style="font-size: 0.65rem; color: #94A3B8;">NFPA-10</span>
+              <span class="card-subtitle">NFPA-10</span>
             </div>
 
             <div id="pass-step-p" class="pass-step-item">
@@ -94,10 +90,10 @@ export class SafeSphereUI {
           </div>
 
           <!-- Right: Hazard Suppression & Standoff Gauge -->
-          <div class="hazard-card glass-panel hud-interactive">
+          <div class="hazard-card hud-panel hud-interactive">
             <div class="card-title">
-              <span>HAZARD SUPPRESSION</span>
-              <span id="fire-health-val" style="color: #EF4444; font-weight: 700;">100%</span>
+              <span>FIRE SUPPRESSION</span>
+              <span id="fire-health-val" class="health-percent">100%</span>
             </div>
 
             <div class="fire-bar-container">
@@ -105,122 +101,72 @@ export class SafeSphereUI {
             </div>
 
             <div class="distance-meter">
-              <span style="color: #94A3B8;">STANDOFF:</span>
+              <span class="distance-label">STANDOFF DISTANCE:</span>
               <span id="distance-val" class="distance-val">2.4 m</span>
             </div>
           </div>
         </div>
 
         <!-- Center Crosshair / Aim Guide -->
-        <div id="center-reticle" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; opacity: 0.45;">
-          <svg width="44" height="44" viewBox="0 0 44 44">
-            <circle cx="22" cy="22" r="18" fill="none" stroke="#38BDF8" stroke-width="1.5" stroke-dasharray="4 4"/>
-            <circle cx="22" cy="22" r="2.5" fill="#38BDF8"/>
-            <line x1="22" y1="0" x2="22" y2="8" stroke="#38BDF8" stroke-width="1.5"/>
-            <line x1="22" y1="36" x2="22" y2="44" stroke="#38BDF8" stroke-width="1.5"/>
-            <line x1="0" y1="22" x2="8" y2="22" stroke="#38BDF8" stroke-width="1.5"/>
-            <line x1="36" y1="22" x2="44" y2="22" stroke="#38BDF8" stroke-width="1.5"/>
+        <div id="center-reticle">
+          <svg width="40" height="40" viewBox="0 0 40 40">
+            <circle cx="20" cy="20" r="16" fill="none" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="4 4"/>
+            <circle cx="20" cy="20" r="2" fill="#E2E8F0"/>
+            <line x1="20" y1="0" x2="20" y2="7" stroke="#94A3B8" stroke-width="1.5"/>
+            <line x1="20" y1="33" x2="20" y2="40" stroke="#94A3B8" stroke-width="1.5"/>
+            <line x1="0" y1="20" x2="7" y2="20" stroke="#94A3B8" stroke-width="1.5"/>
+            <line x1="33" y1="20" x2="40" y2="20" stroke="#94A3B8" stroke-width="1.5"/>
           </svg>
         </div>
 
         <!-- Bottom Guidance Ribbon & Controls -->
         <div class="hud-bottom-section">
-          <div class="guidance-ribbon glass-panel hud-interactive">
+          <div class="guidance-ribbon hud-panel hud-interactive">
             <div id="stage-badge" class="guidance-stage-tag">STANDBY</div>
             <div id="guidance-title" class="guidance-title">SafeSphere AR Fire Emergency Simulation</div>
             <div id="guidance-instruction" class="guidance-instruction">
-              Welcome to SafeSphere. Calibrate your environment and extend your hand toward the extinguisher to begin.
+              Click "Start AR Fire Training" to initialize the simulation and anchor the extinguisher in your room.
             </div>
             <div id="feedback-banner" class="feedback-banner"></div>
           </div>
 
-          <!-- Quick Action Bar -->
-          <div class="action-bar glass-panel hud-interactive">
-            <button id="btn-start" class="btn btn-primary" title="Start standard training session">
-              ▶ Start Training
-            </button>
-            <button id="btn-guide-demo" class="btn btn-success" title="Run automated presentation walkthrough for faculty/guide">
-              🎓 Guide Demo
+          <!-- Direct Action Bar with prominent Start Button -->
+          <div class="action-bar hud-panel hud-interactive">
+            <button id="btn-start" class="btn btn-start-training" title="Start AR Fire Training Session">
+              ▶ START AR FIRE TRAINING
             </button>
             <button id="btn-pull-pin" class="btn" title="Disengage safety pin (PASS: P)">
-              ⚡ Pull Pin (P)
+              ⚡ PULL PIN (P)
             </button>
             <button id="btn-squeeze" class="btn" title="Press and hold to discharge extinguishing powder (PASS: S)">
-              🌊 Squeeze Lever (S)
+              🌊 SQUEEZE LEVER (S)
             </button>
             <button id="btn-reposition" class="btn" title="Reposition AR Anchor in front of current view">
-              📍 Reposition Anchor
+              📍 REPOSITION ANCHOR
             </button>
-            <button id="btn-toggle-mode" class="btn" title="Toggle between Camera CV and Simulator Fallback">
-              🔄 Switch Mode
+            <button id="btn-toggle-mode" class="btn" title="Toggle between Camera CV and 3D Simulator">
+              🔄 SWITCH MODE
             </button>
-            <button id="btn-test-suite" class="btn btn-icon-only" title="Run 10-Test Diagnostic Acceptance Suite">
-              🧪 Diagnostic Tests
+            <button id="btn-test-suite" class="btn btn-secondary" title="Run 10-Test Diagnostic Acceptance Suite">
+              🧪 DIAGNOSTIC TESTS
             </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Welcome Onboarding Modal -->
-      <div id="welcome-modal" class="modal-overlay active">
-        <div class="modal-card glass-panel" style="max-width: 620px;">
-          <div style="text-align: center; margin-bottom: 18px;">
-            <div class="brand-logo" style="width: 44px; height: 44px; margin: 0 auto 10px;">
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-              </svg>
-            </div>
-            <h1 style="font-size: 1.45rem; font-weight: 800; letter-spacing: 0.5px;">SAFESPHERE AR</h1>
-            <p style="font-size: 0.82rem; color: #38BDF8; font-family: var(--font-mono); font-weight: 600;">
-              REAL-WORLD AR FIRE EXTINGUISHER EMERGENCY SIMULATION
-            </p>
-            <p style="font-size: 0.78rem; color: #94A3B8; margin-top: 4px;">
-              College Project Demonstration • Solvethon Edition
-            </p>
-          </div>
-
-          <div style="background: rgba(15, 23, 42, 0.7); border-radius: 12px; padding: 14px 18px; margin-bottom: 20px; border: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.82rem; line-height: 1.55;">
-            <div style="color: #FFFFFF; font-weight: 700; margin-bottom: 6px;">Key Engineering Features:</div>
-            <ul style="list-style-type: '✓ '; padding-left: 14px; color: #E2E8F0;">
-              <li><strong>Persistent 6DoF Spatial Anchoring</strong>: Stable world pose preserves position when camera orbits or translates.</li>
-              <li><strong>Computer Vision Hand Tracking</strong>: Real-time 21 3D landmarks via MediaPipe with physical reach & hysteresis grab.</li>
-              <li><strong>NFPA-10 PASS Protocol</strong>: Pull pin, Aim at base, Squeeze lever, Sweep side-to-side.</li>
-              <li><strong>Continuous Volumetric Fire & Suppression</strong>: Multi-layer procedural flames, embers, smoke, and powder physics.</li>
-              <li><strong>10-Point Technical Acceptance Test Suite</strong>: Fully verified automated diagnostics.</li>
-            </ul>
-          </div>
-
-          <div style="display: flex; flex-direction: column; gap: 10px;">
-            <button id="btn-launch-camera" class="btn btn-primary" style="padding: 12px; justify-content: center; font-size: 0.9rem;">
-              📷 Launch Live Camera AR Mode
-            </button>
-            <div style="display: flex; gap: 10px;">
-              <button id="btn-launch-sim" class="btn" style="flex: 1; padding: 10px; justify-content: center;">
-                🎮 3D VR Simulation Bay
-              </button>
-              <button id="btn-launch-guide-demo" class="btn btn-success" style="flex: 1; padding: 10px; justify-content: center;">
-                🎓 Guide Demo Walkthrough
-              </button>
-            </div>
           </div>
         </div>
       </div>
 
       <!-- Performance Results Modal -->
       <div id="results-modal" class="modal-overlay">
-        <div class="modal-card glass-panel" style="max-width: 580px;">
+        <div class="modal-card hud-panel" style="max-width: 560px;">
           <div class="score-badge-circle">
             <div id="final-score-val" class="score-num">95</div>
             <div class="score-label">Score / 100</div>
           </div>
 
-          <div id="res-grade-val" style="font-size: 1.05rem; font-weight: 700; color: #38BDF8; text-align: center; margin-bottom: 4px; font-family: var(--font-mono);">
-            Grade: A+ (Exemplary)
-          </div>
+          <div id="res-grade-val" class="grade-label">Grade: A+ (Exemplary)</div>
 
-          <h2 style="text-align: center; font-size: 1.25rem; margin-bottom: 2px;">Emergency Response Assessment</h2>
-          <p style="text-align: center; font-size: 0.78rem; color: #94A3B8; margin-bottom: 14px;">
-            Institutional PASS Training Report • SafeSphere Engine
+          <h2 style="text-align: center; font-size: 1.25rem; margin-bottom: 2px;">Training Session Complete</h2>
+          <p style="text-align: center; font-size: 0.8rem; color: #8B949E; margin-bottom: 14px;">
+            SafeSphere PASS Emergency Evaluation Report
           </p>
 
           <table class="results-table">
@@ -230,29 +176,29 @@ export class SafeSphereUI {
               <tr><td>Pin Disengagement Time</td><td id="res-pin-time">4.2 s</td></tr>
               <tr><td>Time to Valid Base Aim</td><td id="res-aim-time">6.5 s</td></tr>
               <tr><td>Aim Accuracy (% on Fuel Base)</td><td id="res-accuracy">84%</td></tr>
-              <tr><td>Side-to-Side Sweep Cadence</td><td id="res-sweep">Active (10/10)</td></tr>
+              <tr><td>Side-to-Side Sweep Cadence</td><td id="res-sweep">PASS (10/10)</td></tr>
               <tr><td>Aim Corrections Count</td><td id="res-corrections">2</td></tr>
-              <tr><td>Hazard Neutralized</td><td id="res-extinguished" style="color: #00E676;">SUCCESS</td></tr>
+              <tr><td>Hazard Neutralized</td><td id="res-extinguished" style="color: #2EA043;">SUCCESS</td></tr>
             </tbody>
           </table>
 
-          <div style="font-size: 0.82rem; font-weight: 700; color: #38BDF8; margin-top: 10px;">
+          <div style="font-size: 0.82rem; font-weight: 700; color: #E6EDF3; margin-top: 10px;">
             Actionable Training Feedback:
           </div>
           <ul id="res-tips-list" class="tips-list"></ul>
 
           <div class="disclaimer-box">
-            <strong>Academic Educational Disclaimer:</strong> SafeSphere is a university prototype designed for emergency training simulation. It demonstrates proper PASS mechanics but does not substitute for certified NFPA-compliant firefighting qualifications.
+            <strong>Educational Notice:</strong> SafeSphere is an educational simulation demonstrating PASS mechanics. Follow official local building emergency procedures in a real fire incident.
           </div>
 
           <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px;">
             <button id="btn-retry" class="btn btn-primary" style="flex: 1; justify-content: center;">
               🔄 Practice Again
             </button>
-            <button id="btn-print-report" class="btn btn-success" style="flex: 1; justify-content: center;">
+            <button id="btn-print-report" class="btn btn-secondary" style="flex: 1; justify-content: center;">
               🖨️ Export PDF / Print
             </button>
-            <button id="btn-close-results" class="btn" style="flex: 1; justify-content: center;">
+            <button id="btn-close-results" class="btn btn-secondary" style="flex: 1; justify-content: center;">
               Close Summary
             </button>
           </div>
@@ -261,11 +207,11 @@ export class SafeSphereUI {
 
       <!-- Diagnostic Acceptance Test Suite Modal -->
       <div id="test-modal" class="modal-overlay">
-        <div class="modal-card glass-panel" style="max-width: 660px;">
+        <div class="modal-card hud-panel" style="max-width: 660px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <div>
-              <h2 style="font-size: 1.25rem;">10-Point Technical Acceptance Suite</h2>
-              <div style="font-size: 0.75rem; color: #38BDF8; font-family: var(--font-mono);">
+              <h2 style="font-size: 1.2rem;">10-Point Technical Acceptance Suite</h2>
+              <div style="font-size: 0.75rem; color: #8B949E; font-family: var(--font-mono);">
                 Specification Verification & Diagnostic Audit
               </div>
             </div>
@@ -275,13 +221,13 @@ export class SafeSphereUI {
           </div>
 
           <div id="test-report-list" class="test-report-list">
-            <div style="text-align: center; padding: 30px; color: #94A3B8; font-size: 0.85rem;">
+            <div style="text-align: center; padding: 30px; color: #8B949E; font-size: 0.85rem;">
               Click "Run Diagnostics" to execute tests 1 through 10: Anchor Stability, Grab Range, Natural Movement, Aiming, Suppression Curve, Release, Completion, Failure Recovery, Repeatability, and Real Device validation.
             </div>
           </div>
 
           <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px;">
-            <button id="btn-close-tests" class="btn">Close</button>
+            <button id="btn-close-tests" class="btn btn-secondary">Close</button>
           </div>
         </div>
       </div>
@@ -289,31 +235,11 @@ export class SafeSphereUI {
   }
 
   bindEvents() {
-    // Welcome Modal buttons
-    document.getElementById('btn-launch-camera').addEventListener('click', () => {
-      document.getElementById('welcome-modal').classList.remove('active');
+    // Start AR Fire Training button
+    const btnStart = document.getElementById('btn-start');
+    btnStart.addEventListener('click', () => {
+      btnStart.textContent = '🔄 RESTART SESSION';
       if (this.callbacks.onStart) this.callbacks.onStart();
-    });
-
-    document.getElementById('btn-launch-sim').addEventListener('click', () => {
-      document.getElementById('welcome-modal').classList.remove('active');
-      if (this.callbacks.onToggleMode) this.callbacks.onToggleMode();
-      if (this.callbacks.onStart) this.callbacks.onStart();
-    });
-
-    document.getElementById('btn-launch-guide-demo').addEventListener('click', () => {
-      document.getElementById('welcome-modal').classList.remove('active');
-      if (this.callbacks.onGuideDemo) this.callbacks.onGuideDemo();
-    });
-
-    // Start button
-    document.getElementById('btn-start').addEventListener('click', () => {
-      if (this.callbacks.onStart) this.callbacks.onStart();
-    });
-
-    // Guide Demo button in action bar
-    document.getElementById('btn-guide-demo').addEventListener('click', () => {
-      if (this.callbacks.onGuideDemo) this.callbacks.onGuideDemo();
     });
 
     // Pull pin button
@@ -321,7 +247,7 @@ export class SafeSphereUI {
       if (this.callbacks.onPullPin) this.callbacks.onPullPin();
     });
 
-    // Squeeze lever button
+    // Squeeze lever button (hold to spray, release to stop)
     const btnSqueeze = document.getElementById('btn-squeeze');
     let isSqueezing = false;
 
@@ -329,7 +255,7 @@ export class SafeSphereUI {
       e.preventDefault();
       if (!isSqueezing) {
         isSqueezing = true;
-        btnSqueeze.classList.add('btn-danger');
+        btnSqueeze.classList.add('btn-active-squeeze');
         if (this.callbacks.onSqueeze) this.callbacks.onSqueeze(true);
       }
     };
@@ -338,7 +264,7 @@ export class SafeSphereUI {
       e.preventDefault();
       if (isSqueezing) {
         isSqueezing = false;
-        btnSqueeze.classList.remove('btn-danger');
+        btnSqueeze.classList.remove('btn-active-squeeze');
         if (this.callbacks.onSqueeze) this.callbacks.onSqueeze(false);
       }
     };
@@ -362,12 +288,6 @@ export class SafeSphereUI {
     document.getElementById('btn-audio-toggle').addEventListener('click', () => {
       const isMuted = soundFx.toggleMute();
       document.getElementById('audio-icon').textContent = isMuted ? '🔇' : '🔊';
-    });
-
-    // Voice guidance toggle button
-    document.getElementById('btn-voice-toggle').addEventListener('click', () => {
-      const isVoiceOn = soundFx.toggleVoice();
-      document.getElementById('voice-icon').textContent = isVoiceOn ? '🗣️' : '🤫';
     });
 
     // Test Suite button
@@ -524,6 +444,6 @@ export class SafeSphereUI {
 
   setSimulatorToggleLabel(isSimulator) {
     const btn = document.getElementById('btn-toggle-mode');
-    btn.textContent = isSimulator ? '📷 Switch to Camera AR' : '🔄 Switch to Simulator';
+    btn.textContent = isSimulator ? '📷 CAMERA AR' : '🔄 3D SIMULATOR';
   }
 }

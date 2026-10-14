@@ -178,10 +178,6 @@ class SafeSphereApp {
         this.arTracker.repositionAnchor(this.extinguisher, this.fire);
         this.ui.showFeedback('📍 Scenario anchor repositioned to your current viewpoint.');
       },
-      onGuideDemo: () => {
-        this.trainingManager.runGuideDemo();
-        this.ui.showFeedback('🎓 Running automated presentation walkthrough for faculty/guide.');
-      },
       onToggleMode: () => {
         if (this.handTracker.mode === TRACKING_MODE.MEDIAPIPE_VISION) {
           this.handTracker.setMode(TRACKING_MODE.SIMULATOR_FALLBACK);

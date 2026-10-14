@@ -36,40 +36,7 @@ class SoundSynthesizer {
     if (this.sprayGain && this.isMuted) {
       this.sprayGain.gain.setValueAtTime(0, this.ctx.currentTime);
     }
-    if (this.isMuted && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-    }
     return this.isMuted;
-  }
-
-  toggleVoice() {
-    this.isVoiceEnabled = !this.isVoiceEnabled;
-    if (!this.isVoiceEnabled && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-    }
-    return this.isVoiceEnabled;
-  }
-
-  // Voice Guidance (SpeechSynthesis)
-  speak(text) {
-    if (!this.isVoiceEnabled || this.isMuted || !window.speechSynthesis) return;
-    if (text === this.lastSpokenText) return;
-    this.lastSpokenText = text;
-
-    try {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1.05;
-      utterance.pitch = 1.0;
-      utterance.volume = 0.85;
-
-      // Select natural English voice if available
-      const voices = window.speechSynthesis.getVoices();
-      const preferred = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Samantha')));
-      if (preferred) utterance.voice = preferred;
-
-      window.speechSynthesis.speak(utterance);
-    } catch (_) {}
   }
 
   // PASS Step 1: Pull the pin (metallic clink and spring ping)

@@ -89,9 +89,6 @@ export class TrainingManager {
   setStage(newStage) {
     this.currentStage = newStage;
     const prompt = this.stagePrompts[newStage];
-    if (prompt && prompt.instruction) {
-      soundFx.speak(prompt.instruction);
-    }
     if (this.ui.onStageChange) {
       this.ui.onStageChange(newStage, prompt);
     }
@@ -226,50 +223,5 @@ export class TrainingManager {
     this.isActive = true;
     soundFx.startFireSound();
     this.setStage(TRAINING_STAGE.INSTRUCTION);
-  }
-
-  // Guide Presentation Demo: Smoothly automates the PASS response sequence
-  async runGuideDemo() {
-    this.restart();
-    soundFx.speak('Initiating Guide Demonstration. Executing standard PASS response protocol.');
-
-    await new Promise(r => setTimeout(r, 1200));
-
-    // Step 1: Reach and Grab
-    const handlePos = this.extinguisher.getHandleWorldPosition();
-    this.extinguisher.grab(handlePos, this.arTracker.camera3D.quaternion);
-    this.evaluator.recordPickup();
-    this.setStage(TRAINING_STAGE.PIN_PULL);
-
-    await new Promise(r => setTimeout(r, 1500));
-
-    // Step 2: Pull Pin
-    this.triggerPinPull();
-
-    await new Promise(r => setTimeout(r, 1500));
-
-    // Step 3: Aim at base
-    const fireBase = this.fire.getBaseWorldPosition();
-    this.extinguisher.group.position.set(fireBase.x, fireBase.y + 0.15, fireBase.z + 1.9);
-    this.extinguisher.group.lookAt(fireBase);
-    this.evaluator.recordAim(true);
-    this.setStage(TRAINING_STAGE.SUPPRESSION);
-
-    await new Promise(r => setTimeout(r, 1200));
-
-    // Step 4: Squeeze and Sweep
-    this.triggerSqueeze(true);
-    let sweepAngle = 0;
-    const sweepInterval = setInterval(() => {
-      if (this.fire.isExtinguished) {
-        clearInterval(sweepInterval);
-        this.triggerSqueeze(false);
-        return;
-      }
-      sweepAngle += 0.08;
-      const offsetX = Math.sin(sweepAngle) * 0.22;
-      this.extinguisher.group.position.x = fireBase.x + offsetX;
-      this.extinguisher.group.lookAt(fireBase);
-    }, 50);
   }
 }
