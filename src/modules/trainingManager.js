@@ -89,9 +89,9 @@ export class TrainingManager {
     soundFx.playCalibrationSuccess();
     if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
 
-    // Position extinguisher and fire right in front of user in their scanned room
+    // Position extinguisher on equipment stand and fire on the accident workbench
     if (this.arTracker) {
-      this.arTracker.repositionAnchor(this.extinguisher, this.fire);
+      this.arTracker.anchorScenario(this.extinguisher, this.fire);
       if (this.arTracker.reticleGroup) {
         this.arTracker.reticleGroup.visible = false;
       }
@@ -232,11 +232,18 @@ export class TrainingManager {
     }
   }
 
-  // Trigger pickup from touch or hand grab
-  triggerPickup(pos = null, quat = null) {
-    const p = pos || this.arTracker.camera3D.position;
-    const q = quat || this.arTracker.camera3D.quaternion;
-    const success = this.extinguisher.grab(p, q);
+  // Trigger pickup from touch, UI button, or hand grab
+  triggerPickup(pos = null, quat = null, force = false) {
+    if (this.extinguisher.state !== EXTINGUISHER_STATE.WORLD_ANCHORED) return false;
+    let success = false;
+    if (force) {
+      const nearPos = this.extinguisher.getHandleWorldPosition().clone().add(new THREE.Vector3(0.02, 0.02, 0.02));
+      success = this.extinguisher.grab(nearPos, quat || this.arTracker.camera3D.quaternion);
+    } else {
+      const p = pos || this.arTracker.camera3D.position;
+      const q = quat || this.arTracker.camera3D.quaternion;
+      success = this.extinguisher.grab(p, q);
+    }
     if (success) {
       this.evaluator.recordPickup();
       this.setStage(this.extinguisher.isPinPulled ? TRAINING_STAGE.APPROACH_AIM : TRAINING_STAGE.PIN_PULL);
@@ -274,11 +281,14 @@ export class TrainingManager {
     this.extinguisher.reset();
     this.fire.reset();
     this.spray.reset();
+    if (this.arTracker) {
+      this.arTracker.anchorScenario(this.extinguisher, this.fire);
+      if (this.arTracker.reticleGroup) {
+        this.arTracker.reticleGroup.visible = false;
+      }
+    }
     this.extinguisher.group.visible = true;
     this.fire.group.visible = true;
-    if (this.arTracker && this.arTracker.reticleGroup) {
-      this.arTracker.reticleGroup.visible = false;
-    }
     this.evaluator.startSession();
     this.elapsedSessionTime = 0;
     this.isActive = true;

@@ -10,6 +10,7 @@ import { ARTrackingManager, AR_SESSION_MODE } from './modules/arTracking.js';
 import { PerformanceEvaluator } from './modules/evaluation.js';
 import { TrainingManager, TRAINING_STAGE } from './modules/trainingManager.js';
 import { SafeSphereUI } from './modules/ui.js';
+import { FireRoomEnvironment } from './modules/fireRoom.js';
 import { AcceptanceTestSuite } from './modules/testSuite.js';
 
 class SafeSphereApp {
@@ -20,6 +21,8 @@ class SafeSphereApp {
     this.clock = new THREE.Clock();
     this.lastFrameTime = 0;
     this.mediaPipeThrottle = 0;
+    this.raycaster = new THREE.Raycaster();
+    this.mouseVec = new THREE.Vector2();
 
     // Mobile touch & interaction state
     this.hapticInterval = null;
@@ -44,19 +47,19 @@ class SafeSphereApp {
     // 1. Scene
     this.scene = new THREE.Scene();
 
-    // 2. Camera
+    // 2. First-Person Camera inside the accident room
     this.camera = new THREE.PerspectiveCamera(
       60,
       window.innerWidth / window.innerHeight,
       0.05,
       50
     );
-    this.camera.position.set(0, 0.35, 0.5);
+    this.camera.position.set(0, 0.45, 1.2);
+    this.camera.lookAt(0, 0.1, -1.5);
 
-    // 3. Renderer with transparent background for realistic AR pass-through
+    // 3. Renderer with solid VR atmosphere
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
-      alpha: true,
       powerPreference: 'high-performance'
     });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -64,16 +67,17 @@ class SafeSphereApp {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.1;
+    this.renderer.toneMappingExposure = 1.15;
+    this.renderer.setClearColor(0x0a0f16, 1.0);
 
     canvasContainer.appendChild(this.renderer.domElement);
 
-    // 4. Lighting for realistic PBR rendering
-    const ambientLight = new THREE.AmbientLight(0xFFFFFF, 0.95);
+    // 4. Lighting for realistic room rendering
+    const ambientLight = new THREE.AmbientLight(0xFFFFFF, 0.65);
     this.scene.add(ambientLight);
 
-    const sunLight = new THREE.DirectionalLight(0xFFFFFF, 1.4);
-    sunLight.position.set(2, 5, 3);
+    const sunLight = new THREE.DirectionalLight(0xF8FAFC, 1.1);
+    sunLight.position.set(2, 4.5, 2);
     sunLight.castShadow = true;
     sunLight.shadow.mapSize.width = 1024;
     sunLight.shadow.mapSize.height = 1024;
@@ -81,14 +85,8 @@ class SafeSphereApp {
     sunLight.shadow.camera.far = 15;
     this.scene.add(sunLight);
 
-    // 5. Contact shadow ground plane
-    const groundGeo = new THREE.PlaneGeometry(15, 15);
-    const groundMat = new THREE.ShadowMaterial({ opacity: 0.38 });
-    const ground = new THREE.Mesh(groundGeo, groundMat);
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -0.30;
-    ground.receiveShadow = true;
-    this.scene.add(ground);
+    // 5. Realistic 3D Accident Room Environment (walls, floor tiles, exit door, lights, strobe, workbench)
+    this.fireRoom = new FireRoomEnvironment(this.scene);
 
     window.addEventListener('resize', () => this.onWindowResize());
   }
@@ -152,99 +150,79 @@ class SafeSphereApp {
       this.evaluator
     );
 
-    // Request camera and detect surroundings
+    // Start directly inside the VR accident room with the emergency active!
+    this.ui.setTrackingModeLabel('VR ACCIDENT ROOM');
+    this.trainingManager.deployFireScenario();
+    this.scenarioDeployed = true;
+    this.ui.hideSetupOptions();
+
+    // Optionally connect camera for live hand gesture tracking
     try {
       const arResult = await this.arTracker.startCameraAR();
       if (arResult.success) {
-        this.ui.setTrackingModeLabel('CAMERA AR');
         await this.handTracker.initMediaPipe();
       } else {
-        this.ui.setTrackingModeLabel('3D SIMULATOR', true);
         this.handTracker.setMode(TRACKING_MODE.SIMULATOR_FALLBACK);
       }
     } catch (err) {
-      console.warn('Camera AR fallback active:', err);
-      this.ui.setTrackingModeLabel('3D SIMULATOR', true);
       this.handTracker.setMode(TRACKING_MODE.SIMULATOR_FALLBACK);
     }
-
-    // First analyse the room: hide extinguisher and fire until room is scanned!
-    this.scenarioDeployed = false;
-    this.isAnalysingRoom = false;
-    this.roomAnalysed = false;
-    this.roomScanProgress = 0;
-    this.lastChirpPct = 0;
-    this.trainingManager.startRoomScanning();
   }
 
   setupInteractions() {
     this.ui.setCallbacks({
+      onPickupExtinguisher: () => {
+        soundFx.init();
+        soundFx.resume();
+        const success = this.trainingManager.triggerPickup(null, null, true);
+        if (success) {
+          if (navigator.vibrate) navigator.vibrate(40);
+          this.ui.showFeedback('✅ Extinguisher grabbed! Pull safety pin (P key or tap).');
+        }
+      },
+      onRestartScenario: () => {
+        soundFx.init();
+        soundFx.resume();
+        this.camera.position.set(0, 0.45, 1.2);
+        this.camera.lookAt(0, 0.1, -1.5);
+        if (this.arTracker) {
+          this.arTracker.cameraYaw = 0;
+          this.arTracker.cameraPitch = 0;
+          this.arTracker.cameraPos.set(0, 0.45, 1.2);
+        }
+        this.trainingManager.restart();
+        this.ui.showFeedback('🔄 Mission restarted! Pick up the extinguisher and extinguish the fire.');
+      },
+      onWalkPad: (key, isPressed) => {
+        if (this.arTracker) {
+          this.arTracker.setMoveInput(key, isPressed);
+        }
+      },
       onAnalyseRoom: async () => {
         soundFx.init();
         soundFx.resume();
         soundFx.playHandScanChirp();
         if (navigator.vibrate) navigator.vibrate(50);
-
-        // Ensure camera is active
-        if (!this.arTracker.isSessionActive || this.arTracker.mode !== AR_SESSION_MODE.CAMERA_PASSTHROUGH_CV) {
-          try {
-            const res = await this.arTracker.startCameraAR();
-            if (res.success) {
-              this.ui.setTrackingModeLabel('CAMERA AR');
-              await this.handTracker.initMediaPipe();
-            }
-          } catch (e) {
-            console.warn('Camera request inside analyse room:', e);
-          }
-        }
-
-        this.scenarioDeployed = false;
-        this.roomScanProgress = 0;
-        this.lastChirpPct = 0;
-        this.isAnalysingRoom = true;
-        this.roomAnalysed = false;
-        this.trainingManager.startRoomScanning();
-        if (this.arTracker.setReticleState) {
-          this.arTracker.setReticleState('scanning');
-        }
-        this.trainingManager.setStage(TRAINING_STAGE.SETUP);
-        this.ui.setRoomAnalysed(false);
-        this.ui.showFeedback('🔍 Moving phone to scan room floor...');
+        this.trainingManager.restart();
+        this.ui.showFeedback('🔍 VR accident room re-aligned.');
       },
       onStartTraining: async () => {
         soundFx.init();
         soundFx.resume();
-
-        // Ensure camera is active
-        if (!this.arTracker.isSessionActive || this.arTracker.mode !== AR_SESSION_MODE.CAMERA_PASSTHROUGH_CV) {
-          try {
-            const res = await this.arTracker.startCameraAR();
-            if (res.success) {
-              this.ui.setTrackingModeLabel('CAMERA AR');
-              await this.handTracker.initMediaPipe();
-            }
-          } catch (e) {
-            console.warn('Camera request inside start training:', e);
-          }
-        }
-
         this.scenarioDeployed = true;
-        this.isAnalysingRoom = false;
-        this.roomAnalysed = true;
         this.ui.hideSetupOptions();
         this.trainingManager.deployFireScenario();
-        this.ui.showFeedback('🔥 Fire scenario ignited on your room floor!');
+        this.ui.showFeedback('🔥 Fire accident active! Extinguish immediately.');
       },
       onRetry: () => {
-        this.scenarioDeployed = false;
-        this.roomScanProgress = 0;
-        this.lastChirpPct = 0;
-        this.isAnalysingRoom = false;
-        this.roomAnalysed = false;
-        this.handScanProgress = 0;
-        this.ui.showSetupOptions();
-        this.ui.setRoomAnalysed(false);
-        this.trainingManager.startRoomScanning();
+        this.camera.position.set(0, 0.45, 1.2);
+        this.camera.lookAt(0, 0.1, -1.5);
+        if (this.arTracker) {
+          this.arTracker.cameraYaw = 0;
+          this.arTracker.cameraPitch = 0;
+          this.arTracker.cameraPos.set(0, 0.45, 1.2);
+        }
+        this.trainingManager.restart();
       },
       onRunTests: async () => {
         const reportList = document.querySelector('#test-report-list');
@@ -259,7 +237,7 @@ class SafeSphereApp {
     // 1. MOBILE TOUCH INTERACTIONS (100% Mobile Phone Physical Control — No Buttons!)
     const handleTouchStart = (e) => {
       // Don't intercept top-bar icons, setup-options buttons, or modals
-      if (e.target.closest('.top-bar') || e.target.closest('#setup-options') || e.target.closest('#test-modal') || e.target.closest('#results-modal')) {
+      if (e.target.closest('.top-bar') || e.target.closest('#setup-options') || e.target.closest('#test-modal') || e.target.closest('#results-modal') || e.target.closest('#mobile-walk-pad') || e.target.closest('.hud-action-card')) {
         return;
       }
 
@@ -275,13 +253,13 @@ class SafeSphereApp {
         this.scenarioDeployed = true;
         this.ui.hideSetupOptions();
         this.trainingManager.deployFireScenario();
-        this.ui.showFeedback('🔥 Fire scenario ignited in your room!');
+        this.ui.showFeedback('🔥 Fire accident active in room!');
         return;
       }
 
       // STAGE 1: Grab Extinguisher
       if (stage === TRAINING_STAGE.INSTRUCTION || stage === TRAINING_STAGE.PICKUP) {
-        const success = this.trainingManager.triggerPickup(this.camera.position, this.camera.quaternion);
+        const success = this.trainingManager.triggerPickup(this.camera.position, this.camera.quaternion, true);
         if (success) {
           if (navigator.vibrate) navigator.vibrate(40);
           this.ui.showFeedback('✅ Extinguisher grabbed! Pull safety pin (P).');
@@ -326,7 +304,7 @@ class SafeSphereApp {
     };
 
     const handleTouchMove = (e) => {
-      if (e.target.closest('.top-bar') || e.target.closest('.modal-card')) return;
+      if (e.target.closest('.top-bar') || e.target.closest('.modal-card') || e.target.closest('#mobile-walk-pad') || e.target.closest('.hud-action-card')) return;
       if (!e.touches || e.touches.length === 0) return;
 
       const currentY = e.touches[0].clientY;
@@ -345,7 +323,7 @@ class SafeSphereApp {
         const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
         fwd.y = 0;
         fwd.normalize();
-        if (this.camera.position.z < 0.8) {
+        if (this.camera.position.z < 2.0) {
           this.camera.position.addScaledVector(fwd, -0.05);
         }
       }
@@ -356,23 +334,25 @@ class SafeSphereApp {
     window.addEventListener('touchcancel', handleTouchEnd, { passive: true });
     window.addEventListener('touchmove', handleTouchMove, { passive: true });
 
-    // 2. MOUSE / DESKTOP TESTING FALLBACK
+    // 2. MOUSE / DESKTOP FIRST-PERSON VR INTERACTION
     window.addEventListener('mousedown', (e) => {
-      if (e.target.closest('.top-bar') || e.target.closest('#setup-options') || e.target.closest('.modal-card')) return;
+      if (e.target.closest('.top-bar') || e.target.closest('#setup-options') || e.target.closest('.modal-card') || e.target.closest('#mobile-walk-pad') || e.target.closest('.hud-action-card') || e.target.closest('button')) return;
 
       const stage = this.trainingManager.currentStage;
       if (stage === TRAINING_STAGE.SETUP || stage === TRAINING_STAGE.PLACEMENT || stage === TRAINING_STAGE.INTRO) {
         this.scenarioDeployed = true;
         this.ui.hideSetupOptions();
         this.trainingManager.deployFireScenario();
-        this.ui.showFeedback('🔥 Fire scenario ignited in your room!');
+        this.ui.showFeedback('🔥 Fire accident active in room!');
         return;
       }
 
       if (stage === TRAINING_STAGE.INSTRUCTION || stage === TRAINING_STAGE.PICKUP) {
-        this.trainingManager.triggerPickup(this.camera.position, this.camera.quaternion);
+        this.trainingManager.triggerPickup(this.camera.position, this.camera.quaternion, true);
+        this.ui.showFeedback('✅ Extinguisher grabbed! Pull safety pin (P key or tap).');
       } else if (stage === TRAINING_STAGE.PIN_PULL) {
         this.trainingManager.triggerPinPull();
+        this.ui.showFeedback('✅ Safety pin pulled! Aim at base of fire.');
       } else if (stage === TRAINING_STAGE.SUPPRESSION || stage === TRAINING_STAGE.APPROACH_AIM) {
         this.trainingManager.setTouchSqueeze(true);
       }
@@ -382,14 +362,28 @@ class SafeSphereApp {
       this.trainingManager.setTouchSqueeze(false);
     });
 
-    // 3. KEYBOARD SHORTCUTS FOR TESTING
+    // 3. KEYBOARD SHORTCUTS FOR VR FIRST-PERSON GAMEPLAY
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Space') {
         if (this.extinguisher.state === EXTINGUISHER_STATE.HELD) {
           this.trainingManager.setTouchSqueeze(true);
         }
+      } else if (e.key === 'e' || e.key === 'E') {
+        this.trainingManager.triggerPickup(null, null, true);
+        this.ui.showFeedback('✅ Extinguisher grabbed! Pull safety pin (P).');
       } else if (e.key === 'p' || e.key === 'P') {
         this.trainingManager.triggerPinPull();
+        this.ui.showFeedback('✅ Safety pin pulled! Aim at base of fire.');
+      } else if (e.key === 'r' || e.key === 'R') {
+        this.camera.position.set(0, 0.45, 1.2);
+        this.camera.lookAt(0, 0.1, -1.5);
+        if (this.arTracker) {
+          this.arTracker.cameraYaw = 0;
+          this.arTracker.cameraPitch = 0;
+          this.arTracker.cameraPos.set(0, 0.45, 1.2);
+        }
+        this.trainingManager.restart();
+        this.ui.showFeedback('🔄 Mission restarted!');
       } else if (e.key === 't' || e.key === 'T') {
         const modal = document.getElementById('test-modal');
         if (modal) modal.classList.toggle('active');
@@ -410,6 +404,11 @@ class SafeSphereApp {
   renderFrame() {
     const delta = Math.min(this.clock.getDelta(), 0.1);
     const elapsedTime = this.clock.getElapsedTime();
+
+    // 0. Update realistic 3D room environment (emergency beacon, flickering fixtures)
+    if (this.fireRoom) {
+      this.fireRoom.update(delta, elapsedTime);
+    }
 
     // 1. Process MediaPipe hand tracking frame at ~30 FPS
     this.mediaPipeThrottle += delta;
@@ -440,15 +439,11 @@ class SafeSphereApp {
         this.lastChirpPct = 0;
         soundFx.playCalibrationSuccess();
         if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
-        if (this.arTracker.setReticleState) {
-          this.arTracker.setReticleState('locked');
-        }
         this.ui.setRoomAnalysed(true);
-        this.trainingManager.setStage(TRAINING_STAGE.PLACEMENT);
-        this.ui.showFeedback('✅ Room floor mapped! Ready to start training.');
+        this.trainingManager.deployFireScenario();
+        this.ui.showFeedback('🔥 Fire emergency scenario deployed in your room!');
       }
     } else if (this.trainingManager.currentStage === TRAINING_STAGE.PLACEMENT) {
-      // Room floor analyzed! Now analyse hand to deploy fire scenario (or user taps START TRAINING)
       if (this.handTracker.isHandDetected && !this.scenarioDeployed) {
         this.handScanProgress = (this.handScanProgress || 0) + delta * 1.5;
         if (this.handScanProgress >= 0.75) {
@@ -470,8 +465,8 @@ class SafeSphereApp {
           delta
         );
       } else {
-        // First-person mobile camera rig: extinguisher moves naturally with the phone
-        const fpPos = new THREE.Vector3(0.12, -0.19, -0.42).applyMatrix4(this.camera.matrixWorld);
+        // First-person VR equipment rig: extinguisher moves with first-person view
+        const fpPos = new THREE.Vector3(0.18, -0.22, -0.50).applyMatrix4(this.camera.matrixWorld);
         const fpQuat = this.camera.quaternion.clone();
         this.extinguisher.group.position.lerp(fpPos, Math.min(1, delta * 18));
         this.extinguisher.group.quaternion.slerp(fpQuat, Math.min(1, delta * 18));
@@ -506,8 +501,8 @@ class SafeSphereApp {
     // 6. Update Training state machine
     this.trainingManager.update(delta);
 
-    // 7. Update AR reticle pulse on floor surface
-    this.arTracker.update(elapsedTime);
+    // 7. Update First-person controls, walking velocity, and room wall collision bounds
+    this.arTracker.update(elapsedTime, delta);
 
     // 8. Render 3D scene
     this.renderer.render(this.scene, this.camera);

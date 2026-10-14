@@ -17,17 +17,17 @@ export class SafeSphereUI {
     this.app.innerHTML = `
       <div id="canvas-container"></div>
 
-      <!-- Live Minimal AR HUD -->
+      <!-- Live Minimal VR HUD -->
       <div id="hud-overlay">
         <!-- Minimal Top Status Bar -->
         <header class="top-bar hud-panel hud-interactive">
           <div class="brand-section">
             <span class="status-indicator-dot"></span>
-            <span class="brand-title">SAFESPHERE AR</span>
+            <span class="brand-title">SAFESPHERE VR</span>
           </div>
 
           <div class="status-badges">
-            <span id="ar-status-text" class="badge badge-active">CAMERA AR</span>
+            <span id="ar-status-text" class="badge badge-active">3D ACCIDENT ROOM</span>
             <span id="timer-display" class="session-timer">00:00</span>
             <button id="btn-audio-toggle" class="btn btn-icon-only" title="Toggle Sound">
               <span id="audio-icon">🔊</span>
@@ -39,7 +39,7 @@ export class SafeSphereUI {
         </header>
 
         <!-- Mid Row: Compact PASS Status & Fire Health -->
-        <div class="hud-mid-row" id="scenario-metrics" style="display: none;">
+        <div class="hud-mid-row" id="scenario-metrics">
           <!-- Compact PASS Pill Group -->
           <div class="pass-mini-group hud-panel">
             <div id="pass-step-p" class="pass-mini-pill" title="Pull Pin">P</div>
@@ -53,7 +53,7 @@ export class SafeSphereUI {
             <div class="hazard-mini-header">
               <span>FIRE</span>
               <span id="fire-health-val">100%</span>
-              <span id="distance-val" class="dist-tag">2.4m</span>
+              <span id="distance-val" class="dist-tag">2.5m</span>
             </div>
             <div class="fire-bar-container">
               <div id="fire-bar-fill" class="fire-bar-fill" style="width: 100%;"></div>
@@ -73,21 +73,31 @@ export class SafeSphereUI {
           </svg>
         </div>
 
+        <!-- Mobile Walk Controller (Bottom-Left) -->
+        <div id="mobile-walk-pad" class="mobile-walk-pad hud-interactive">
+          <button id="walk-up" class="walk-pad-btn" title="Walk Forward">▲</button>
+          <div class="walk-pad-row">
+            <button id="walk-left" class="walk-pad-btn" title="Strafe Left">◀</button>
+            <button id="walk-down" class="walk-pad-btn" title="Walk Backward">▼</button>
+            <button id="walk-right" class="walk-pad-btn" title="Strafe Right">▶</button>
+          </div>
+        </div>
+
         <!-- Bottom Minimal Live Guidance & Options Section -->
         <div class="hud-bottom-section">
-          <!-- Two Primary Options (Before Training) -->
+          <!-- Primary Actions -->
           <div id="setup-options" class="setup-options-row hud-interactive">
-            <button id="btn-analyse-room" class="btn btn-action-option btn-analyse btn-analyse-invite" title="Scan floor and detect surroundings">
-              <span class="btn-icon">🔍</span> <span class="btn-label">ANALYSE ROOM</span>
+            <button id="btn-pickup-extinguisher" class="btn btn-action-option btn-start-scenario" title="Pick up fire extinguisher">
+              <span class="btn-icon">✋</span> <span class="btn-label">GRAB EXTINGUISHER</span>
             </button>
-            <button id="btn-start-training" class="btn btn-action-option btn-start-scenario" title="Deploy fire emergency scenario">
-              <span class="btn-icon">▶</span> <span class="btn-label">START TRAINING</span>
+            <button id="btn-restart-scenario" class="btn btn-action-option btn-analyse" title="Restart accident mission">
+              <span class="btn-icon">🔄</span> <span class="btn-label">RESTART MISSION</span>
             </button>
           </div>
 
           <div class="guidance-pill hud-panel hud-interactive">
-            <span id="stage-badge" class="guidance-tag">SCANNING</span>
-            <span id="guidance-instruction" class="guidance-text">Move phone to scan room floor</span>
+            <span id="stage-badge" class="guidance-tag">STEP 1</span>
+            <span id="guidance-instruction" class="guidance-text">Walk to extinguisher & click or reach hand to grab</span>
             <span id="spray-active-tag" class="spray-active-tag">🔴 DISCHARGING</span>
           </div>
           <div id="feedback-banner" class="feedback-banner"></div>
@@ -135,35 +145,80 @@ export class SafeSphereUI {
   }
 
   bindEvents() {
-    // 1. Analyse Room button
-    const btnAnalyse = document.getElementById('btn-analyse-room');
-    if (btnAnalyse) {
-      const handleAnalyse = (e) => {
+    // 1. Pick up extinguisher action button
+    const btnPickup = document.getElementById('btn-pickup-extinguisher');
+    if (btnPickup) {
+      const handlePickup = (e) => {
         if (e) {
           e.stopPropagation();
           if (e.cancelable) e.preventDefault();
         }
-        if (this.callbacks.onAnalyseRoom) this.callbacks.onAnalyseRoom();
+        if (this.callbacks.onPickupExtinguisher) this.callbacks.onPickupExtinguisher();
       };
-      btnAnalyse.addEventListener('click', handleAnalyse);
-      btnAnalyse.addEventListener('touchend', handleAnalyse, { passive: false });
-      btnAnalyse.addEventListener('pointerup', handleAnalyse);
+      btnPickup.addEventListener('click', handlePickup);
+      btnPickup.addEventListener('touchend', handlePickup, { passive: false });
+      btnPickup.addEventListener('pointerup', handlePickup);
     }
 
-    // 2. Start Training button
-    const btnStart = document.getElementById('btn-start-training');
-    if (btnStart) {
-      const handleStart = (e) => {
+    // 2. Restart mission action button
+    const btnRestart = document.getElementById('btn-restart-scenario');
+    if (btnRestart) {
+      const handleRestart = (e) => {
         if (e) {
           e.stopPropagation();
           if (e.cancelable) e.preventDefault();
         }
-        this.hideSetupOptions();
-        if (this.callbacks.onStartTraining) this.callbacks.onStartTraining();
+        if (this.callbacks.onRestartScenario) this.callbacks.onRestartScenario();
       };
-      btnStart.addEventListener('click', handleStart);
-      btnStart.addEventListener('touchend', handleStart, { passive: false });
-      btnStart.addEventListener('pointerup', handleStart);
+      btnRestart.addEventListener('click', handleRestart);
+      btnRestart.addEventListener('touchend', handleRestart, { passive: false });
+      btnRestart.addEventListener('pointerup', handleRestart);
+    }
+
+    // 3. Mobile Walk Pad Buttons (▲ ▼ ◀ ▶)
+    const bindPadBtn = (id, key) => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      const startMove = (e) => {
+        if (e) {
+          e.stopPropagation();
+          if (e.cancelable) e.preventDefault();
+        }
+        if (this.callbacks.onWalkPad) this.callbacks.onWalkPad(key, true);
+      };
+      const stopMove = (e) => {
+        if (e) {
+          e.stopPropagation();
+          if (e.cancelable) e.preventDefault();
+        }
+        if (this.callbacks.onWalkPad) this.callbacks.onWalkPad(key, false);
+      };
+
+      btn.addEventListener('pointerdown', startMove);
+      btn.addEventListener('pointerup', stopMove);
+      btn.addEventListener('pointercancel', stopMove);
+      btn.addEventListener('pointerleave', stopMove);
+      btn.addEventListener('touchstart', startMove, { passive: false });
+      btn.addEventListener('touchend', stopMove, { passive: false });
+    };
+
+    bindPadBtn('walk-up', 'w');
+    bindPadBtn('walk-down', 's');
+    bindPadBtn('walk-left', 'a');
+    bindPadBtn('walk-right', 'd');
+
+    // Legacy Analyse/Start buttons (if present)
+    const btnAnalyse = document.getElementById('btn-analyse-room');
+    if (btnAnalyse) {
+      btnAnalyse.addEventListener('click', () => {
+        if (this.callbacks.onAnalyseRoom) this.callbacks.onAnalyseRoom();
+      });
+    }
+    const btnStart = document.getElementById('btn-start-training');
+    if (btnStart) {
+      btnStart.addEventListener('click', () => {
+        if (this.callbacks.onStartTraining) this.callbacks.onStartTraining();
+      });
     }
 
     // Audio mute button

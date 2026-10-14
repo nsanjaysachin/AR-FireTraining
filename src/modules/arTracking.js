@@ -279,6 +279,7 @@ export class ARTrackingManager {
 
   setupDesktopControls() {
     const el = this.container;
+    this.moveInput = { forward: false, backward: false, left: false, right: false };
 
     el.addEventListener('mousedown', (e) => {
       // Allow dragging view when not clicking HUD elements
@@ -289,14 +290,14 @@ export class ARTrackingManager {
     });
 
     window.addEventListener('mousemove', (e) => {
-      if (!this.isDragging || this.hasOrientationSensor) return;
+      if (!this.isDragging) return;
       const dx = e.clientX - this.prevMouse.x;
       const dy = e.clientY - this.prevMouse.y;
       this.prevMouse.x = e.clientX;
       this.prevMouse.y = e.clientY;
 
       this.cameraYaw -= dx * 0.0035;
-      this.cameraPitch = Math.max(-Math.PI * 0.35, Math.min(Math.PI * 0.35, this.cameraPitch - dy * 0.0035));
+      this.cameraPitch = Math.max(-Math.PI * 0.38, Math.min(Math.PI * 0.38, this.cameraPitch - dy * 0.0035));
 
       const euler = new THREE.Euler(this.cameraPitch, this.cameraYaw, 0, 'YXZ');
       this.camera3D.quaternion.setFromEuler(euler);
@@ -306,27 +307,30 @@ export class ARTrackingManager {
       this.isDragging = false;
     });
 
-    // WASD or arrow keys to simulate walking toward fire in desktop mode
+    // WASD or arrow keys keyboard state
     window.addEventListener('keydown', (e) => {
-      const step = 0.08;
-      const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera3D.quaternion);
-      fwd.y = 0;
-      fwd.normalize();
-      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.camera3D.quaternion);
-      right.y = 0;
-      right.normalize();
-
-      if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') {
-        this.cameraPos.addScaledVector(fwd, step);
-      } else if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') {
-        this.cameraPos.addScaledVector(fwd, -step);
-      } else if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') {
-        this.cameraPos.addScaledVector(right, -step);
-      } else if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') {
-        this.cameraPos.addScaledVector(right, step);
-      }
-      this.camera3D.position.copy(this.cameraPos);
+      const k = e.key.toLowerCase();
+      if (k === 'w' || k === 'arrowup') this.moveInput.forward = true;
+      else if (k === 's' || k === 'arrowdown') this.moveInput.backward = true;
+      else if (k === 'a' || k === 'arrowleft') this.moveInput.left = true;
+      else if (k === 'd' || k === 'arrowright') this.moveInput.right = true;
     });
+
+    window.addEventListener('keyup', (e) => {
+      const k = e.key.toLowerCase();
+      if (k === 'w' || k === 'arrowup') this.moveInput.forward = false;
+      else if (k === 's' || k === 'arrowdown') this.moveInput.backward = false;
+      else if (k === 'a' || k === 'arrowleft') this.moveInput.left = false;
+      else if (k === 'd' || k === 'arrowright') this.moveInput.right = false;
+    });
+  }
+
+  setMoveInput(dir, isPressed) {
+    if (!this.moveInput) this.moveInput = { forward: false, backward: false, left: false, right: false };
+    if (dir === 'w') this.moveInput.forward = isPressed;
+    else if (dir === 's') this.moveInput.backward = isPressed;
+    else if (dir === 'a') this.moveInput.left = isPressed;
+    else if (dir === 'd') this.moveInput.right = isPressed;
   }
 
   // Anchor the training scenario objects in the world
@@ -373,7 +377,39 @@ export class ARTrackingManager {
     this.trackingStatusMessage = 'Anchor Locked to Room Floor';
   }
 
-  update(time) {
+  update(time, delta = 0.016) {
+    // Process continuous first-person walking movement
+    if (this.moveInput) {
+      const moveSpeed = 2.4 * delta;
+      const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera3D.quaternion);
+      fwd.y = 0;
+      if (fwd.lengthSq() > 0.001) fwd.normalize();
+      else fwd.set(0, 0, -1);
+
+      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.camera3D.quaternion);
+      right.y = 0;
+      if (right.lengthSq() > 0.001) right.normalize();
+      else right.set(1, 0, 0);
+
+      if (this.moveInput.forward) {
+        this.cameraPos.addScaledVector(fwd, moveSpeed);
+      }
+      if (this.moveInput.backward) {
+        this.cameraPos.addScaledVector(fwd, -moveSpeed);
+      }
+      if (this.moveInput.left) {
+        this.cameraPos.addScaledVector(right, -moveSpeed);
+      }
+      if (this.moveInput.right) {
+        this.cameraPos.addScaledVector(right, moveSpeed);
+      }
+
+      // Clamped within 3D room boundaries
+      this.cameraPos.x = Math.max(-3.5, Math.min(3.5, this.cameraPos.x));
+      this.cameraPos.z = Math.max(-3.6, Math.min(2.5, this.cameraPos.z));
+      this.camera3D.position.copy(this.cameraPos);
+    }
+
     // Surface reticle floor placement & radar sweep animation
     if (this.reticleGroup && this.reticleGroup.visible) {
       if (this.camera3D) {
