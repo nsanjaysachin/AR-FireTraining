@@ -69,31 +69,56 @@ export class ARTrackingManager {
 
     const outerRingGeo = new THREE.RingGeometry(0.25, 0.28, 32);
     outerRingGeo.rotateX(-Math.PI / 2);
-    const ringMat = new THREE.MeshBasicMaterial({
+    this.reticleRingMat = new THREE.MeshBasicMaterial({
       color: 0x38BDF8,
       side: THREE.DoubleSide,
       transparent: true,
-      opacity: 0.8
+      opacity: 0.85
     });
-    const outerRing = new THREE.Mesh(outerRingGeo, ringMat);
+    const outerRing = new THREE.Mesh(outerRingGeo, this.reticleRingMat);
     this.reticleGroup.add(outerRing);
 
     const innerDotGeo = new THREE.CircleGeometry(0.04, 16);
     innerDotGeo.rotateX(-Math.PI / 2);
-    const innerDot = new THREE.Mesh(innerDotGeo, ringMat);
+    const innerDot = new THREE.Mesh(innerDotGeo, this.reticleRingMat);
     this.reticleGroup.add(innerDot);
 
     // Crosshairs
-    const lineMat = new THREE.LineBasicMaterial({ color: 0x38BDF8, transparent: true, opacity: 0.8 });
+    this.reticleLineMat = new THREE.LineBasicMaterial({ color: 0x38BDF8, transparent: true, opacity: 0.85 });
     const crossGeo = new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(-0.35, 0, 0), new THREE.Vector3(0.35, 0, 0),
       new THREE.Vector3(0, 0, -0.35), new THREE.Vector3(0, 0, 0.35)
     ]);
-    const crosshair = new THREE.LineSegments(crossGeo, lineMat);
+    const crosshair = new THREE.LineSegments(crossGeo, this.reticleLineMat);
     this.reticleGroup.add(crosshair);
+
+    // Dynamic scanning radar sweep wave
+    const radarGeo = new THREE.RingGeometry(0.06, 0.08, 32);
+    radarGeo.rotateX(-Math.PI / 2);
+    this.radarMat = new THREE.MeshBasicMaterial({
+      color: 0x38BDF8,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.6
+    });
+    this.radarMesh = new THREE.Mesh(radarGeo, this.radarMat);
+    this.reticleGroup.add(this.radarMesh);
 
     this.reticleGroup.position.set(0, -0.3, -1.5);
     this.scene.add(this.reticleGroup);
+  }
+
+  setReticleState(state = 'scanning') {
+    if (!this.reticleRingMat || !this.reticleLineMat) return;
+    if (state === 'locked') {
+      this.reticleRingMat.color.setHex(0x10B981); // Emerald Green
+      this.reticleLineMat.color.setHex(0x10B981);
+      if (this.radarMat) this.radarMat.color.setHex(0x10B981);
+    } else {
+      this.reticleRingMat.color.setHex(0x38BDF8); // Tech Cyan
+      this.reticleLineMat.color.setHex(0x38BDF8);
+      if (this.radarMat) this.radarMat.color.setHex(0x38BDF8);
+    }
   }
 
   // Request camera and initialize AR
@@ -338,9 +363,28 @@ export class ARTrackingManager {
   }
 
   update(time) {
-    // Surface reticle pulse animation
-    if (this.reticleGroup) {
-      const scale = 1.0 + Math.sin(time * 3.5) * 0.04;
+    // Surface reticle floor placement & radar sweep animation
+    if (this.reticleGroup && this.reticleGroup.visible) {
+      if (this.camera3D) {
+        const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera3D.quaternion);
+        fwd.y = 0;
+        if (fwd.lengthSq() > 0.001) fwd.normalize();
+        else fwd.set(0, 0, -1);
+
+        const targetPos = this.camera3D.position.clone().addScaledVector(fwd, 1.6);
+        targetPos.y = -0.30;
+        this.reticleGroup.position.lerp(targetPos, 0.12);
+      }
+
+      // Radar pulse wave expansion
+      if (this.radarMesh && this.radarMat) {
+        const radarProgress = (time * 1.6) % 1.0;
+        const radarScale = 0.6 + radarProgress * 3.8;
+        this.radarMesh.scale.set(radarScale, radarScale, radarScale);
+        this.radarMat.opacity = (1.0 - radarProgress) * 0.75;
+      }
+
+      const scale = 1.0 + Math.sin(time * 3.5) * 0.05;
       this.reticleGroup.scale.set(scale, scale, scale);
     }
   }

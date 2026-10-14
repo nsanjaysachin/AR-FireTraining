@@ -30,16 +30,16 @@ export class TrainingManager {
     // Minimalist guidance directives
     this.stagePrompts = {
       [TRAINING_STAGE.INTRO]: {
-        badge: 'SCANNING',
-        instruction: 'Move phone to scan room floor'
+        badge: 'ROOM SCAN',
+        instruction: 'Point camera at floor & tap "ANALYSE ROOM"'
       },
       [TRAINING_STAGE.SETUP]: {
-        badge: 'SCANNING',
-        instruction: 'Move phone to scan room floor'
+        badge: 'ANALYSING',
+        instruction: 'Analysing room surfaces... Move phone slowly'
       },
       [TRAINING_STAGE.PLACEMENT]: {
-        badge: 'DEPLOY',
-        instruction: '✋ Show hand to camera to deploy fire scenario'
+        badge: 'READY',
+        instruction: 'Room mapped! Tap "START TRAINING" to begin'
       },
       [TRAINING_STAGE.INSTRUCTION]: {
         badge: 'PICKUP',
@@ -51,11 +51,11 @@ export class TrainingManager {
       },
       [TRAINING_STAGE.PIN_PULL]: {
         badge: 'P — PIN',
-        instruction: 'Pull yellow safety pin'
+        instruction: 'Pull yellow safety pin (tap or pinch)'
       },
       [TRAINING_STAGE.APPROACH_AIM]: {
         badge: 'A — AIM',
-        instruction: 'Aim nozzle at fuel base of fire'
+        instruction: 'Aim nozzle crosshair at base of fire'
       },
       [TRAINING_STAGE.SUPPRESSION]: {
         badge: 'S — SPRAY',
@@ -74,9 +74,12 @@ export class TrainingManager {
     this.fire.group.visible = false;
     if (this.arTracker && this.arTracker.reticleGroup) {
       this.arTracker.reticleGroup.visible = true;
+      if (this.arTracker.setReticleState) {
+        this.arTracker.setReticleState('scanning');
+      }
     }
     this.isActive = false;
-    this.setStage(TRAINING_STAGE.SETUP);
+    this.setStage(TRAINING_STAGE.INTRO);
   }
 
   // 2. Deploy fire emergency scenario after room and hand are analyzed

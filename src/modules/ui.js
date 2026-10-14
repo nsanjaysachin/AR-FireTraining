@@ -73,8 +73,18 @@ export class SafeSphereUI {
           </svg>
         </div>
 
-        <!-- Bottom Minimal Live Guidance Banner -->
+        <!-- Bottom Minimal Live Guidance & Options Section -->
         <div class="hud-bottom-section">
+          <!-- Two Primary Options (Before Training) -->
+          <div id="setup-options" class="setup-options-row hud-interactive">
+            <button id="btn-analyse-room" class="btn btn-action-option btn-analyse btn-analyse-invite" title="Scan floor and detect surroundings">
+              <span class="btn-icon">🔍</span> <span class="btn-label">ANALYSE ROOM</span>
+            </button>
+            <button id="btn-start-training" class="btn btn-action-option btn-start-scenario" title="Deploy fire emergency scenario">
+              <span class="btn-icon">▶</span> <span class="btn-label">START TRAINING</span>
+            </button>
+          </div>
+
           <div class="guidance-pill hud-panel hud-interactive">
             <span id="stage-badge" class="guidance-tag">SCANNING</span>
             <span id="guidance-instruction" class="guidance-text">Move phone to scan room floor</span>
@@ -125,6 +135,37 @@ export class SafeSphereUI {
   }
 
   bindEvents() {
+    // 1. Analyse Room button
+    const btnAnalyse = document.getElementById('btn-analyse-room');
+    if (btnAnalyse) {
+      const handleAnalyse = (e) => {
+        if (e) {
+          e.stopPropagation();
+          if (e.cancelable) e.preventDefault();
+        }
+        if (this.callbacks.onAnalyseRoom) this.callbacks.onAnalyseRoom();
+      };
+      btnAnalyse.addEventListener('click', handleAnalyse);
+      btnAnalyse.addEventListener('touchend', handleAnalyse, { passive: false });
+      btnAnalyse.addEventListener('pointerup', handleAnalyse);
+    }
+
+    // 2. Start Training button
+    const btnStart = document.getElementById('btn-start-training');
+    if (btnStart) {
+      const handleStart = (e) => {
+        if (e) {
+          e.stopPropagation();
+          if (e.cancelable) e.preventDefault();
+        }
+        this.hideSetupOptions();
+        if (this.callbacks.onStartTraining) this.callbacks.onStartTraining();
+      };
+      btnStart.addEventListener('click', handleStart);
+      btnStart.addEventListener('touchend', handleStart, { passive: false });
+      btnStart.addEventListener('pointerup', handleStart);
+    }
+
     // Audio mute button
     const btnAudio = document.getElementById('btn-audio-toggle');
     if (btnAudio) {
@@ -167,6 +208,45 @@ export class SafeSphereUI {
         document.getElementById('results-modal').classList.remove('active');
         if (this.callbacks.onRetry) this.callbacks.onRetry();
       });
+    }
+  }
+
+  hideSetupOptions() {
+    const el = document.getElementById('setup-options');
+    if (el) el.style.display = 'none';
+  }
+
+  showSetupOptions() {
+    const el = document.getElementById('setup-options');
+    if (el) el.style.display = 'flex';
+  }
+
+  setRoomAnalysed(isAnalysed = true) {
+    const btnAnalyse = document.getElementById('btn-analyse-room');
+    if (btnAnalyse) {
+      if (isAnalysed) {
+        btnAnalyse.innerHTML = '<span class="btn-icon">✅</span> <span class="btn-label">ROOM ANALYSED</span>';
+        btnAnalyse.classList.add('btn-analysed-done');
+        btnAnalyse.classList.remove('btn-analyse-invite');
+      } else {
+        btnAnalyse.innerHTML = '<span class="btn-icon">🔍</span> <span class="btn-label">ANALYSE ROOM</span>';
+        btnAnalyse.classList.remove('btn-analysed-done');
+        btnAnalyse.classList.add('btn-analyse-invite');
+      }
+    }
+    this.highlightStartButton(isAnalysed);
+  }
+
+  highlightStartButton(isReady = true) {
+    const btn = document.getElementById('btn-start-training');
+    if (btn) {
+      if (isReady) {
+        btn.classList.add('btn-ready-pulse');
+        btn.innerHTML = '<span class="btn-icon">🔥</span> <span class="btn-label">START TRAINING</span>';
+      } else {
+        btn.classList.remove('btn-ready-pulse');
+        btn.innerHTML = '<span class="btn-icon">▶</span> <span class="btn-label">START TRAINING</span>';
+      }
     }
   }
 

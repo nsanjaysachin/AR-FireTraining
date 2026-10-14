@@ -279,6 +279,119 @@ canvas {
   color: #FFFFFF;
 }
 
+/* HUD Bottom Section */
+.hud-bottom-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  pointer-events: none;
+  padding-bottom: env(safe-area-inset-bottom, 12px);
+  z-index: 20;
+}
+
+/* Two Primary Options Row (Analyse Room & Start Training) */
+.setup-options-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 460px;
+  margin: 0 auto;
+}
+
+.btn-action-option {
+  flex: 1;
+  min-height: 50px;
+  padding: 12px 16px !important;
+  font-size: 0.90rem !important;
+  font-weight: 800 !important;
+  font-family: var(--font-sans);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 10px !important;
+  letter-spacing: 0.5px;
+  touch-action: manipulation;
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.btn-action-option:active {
+  transform: scale(0.96);
+}
+
+.btn-action-option .btn-icon {
+  font-size: 1.05rem;
+}
+
+.btn-analyse {
+  background: rgba(22, 27, 34, 0.92) !important;
+  border: 1.5px solid #38BDF8 !important;
+  color: #38BDF8 !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.btn-analyse:hover, .btn-analyse:active {
+  background: rgba(56, 189, 248, 0.18) !important;
+}
+
+.btn-analyse-invite {
+  animation: pulse-analyse 1.4s infinite alternate;
+}
+
+@keyframes pulse-analyse {
+  from {
+    border-color: #38BDF8;
+    box-shadow: 0 0 6px rgba(56, 189, 248, 0.35);
+  }
+  to {
+    border-color: #7DD3FC;
+    box-shadow: 0 0 16px rgba(56, 189, 248, 0.75);
+    transform: scale(1.02);
+  }
+}
+
+.btn-analysed-done {
+  border-color: #10B981 !important;
+  color: #10B981 !important;
+  background: rgba(16, 185, 129, 0.15) !important;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.3) !important;
+}
+
+.btn-start-scenario {
+  background: var(--safety-red) !important;
+  border: 1.5px solid #EF4444 !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 14px rgba(211, 47, 47, 0.45);
+}
+
+.btn-start-scenario:hover, .btn-start-scenario:active {
+  background: var(--safety-red-hover) !important;
+}
+
+.btn-ready-pulse {
+  animation: pulse-ready 0.9s infinite alternate;
+  border-color: #FCA5A5 !important;
+}
+
+@keyframes pulse-ready {
+  from {
+    transform: scale(0.97);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+  }
+  to {
+    transform: scale(1.04);
+    box-shadow: 0 0 22px rgba(239, 68, 68, 0.95);
+  }
+}
+
 /* Left: PASS Checklist Card */
 .pass-card {
   width: 200px;

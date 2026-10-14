@@ -169,15 +169,81 @@ class SafeSphereApp {
     }
 
     // First analyse the room: hide extinguisher and fire until room is scanned!
+    this.scenarioDeployed = false;
+    this.isAnalysingRoom = false;
+    this.roomAnalysed = false;
+    this.roomScanProgress = 0;
+    this.lastChirpPct = 0;
     this.trainingManager.startRoomScanning();
   }
 
   setupInteractions() {
     this.ui.setCallbacks({
+      onAnalyseRoom: async () => {
+        soundFx.init();
+        soundFx.resume();
+        soundFx.playHandScanChirp();
+        if (navigator.vibrate) navigator.vibrate(50);
+
+        // Ensure camera is active
+        if (!this.arTracker.isSessionActive || this.arTracker.mode !== AR_SESSION_MODE.CAMERA_PASSTHROUGH_CV) {
+          try {
+            const res = await this.arTracker.startCameraAR();
+            if (res.success) {
+              this.ui.setTrackingModeLabel('CAMERA AR');
+              await this.handTracker.initMediaPipe();
+            }
+          } catch (e) {
+            console.warn('Camera request inside analyse room:', e);
+          }
+        }
+
+        this.scenarioDeployed = false;
+        this.roomScanProgress = 0;
+        this.lastChirpPct = 0;
+        this.isAnalysingRoom = true;
+        this.roomAnalysed = false;
+        this.trainingManager.startRoomScanning();
+        if (this.arTracker.setReticleState) {
+          this.arTracker.setReticleState('scanning');
+        }
+        this.trainingManager.setStage(TRAINING_STAGE.SETUP);
+        this.ui.setRoomAnalysed(false);
+        this.ui.showFeedback('🔍 Moving phone to scan room floor...');
+      },
+      onStartTraining: async () => {
+        soundFx.init();
+        soundFx.resume();
+
+        // Ensure camera is active
+        if (!this.arTracker.isSessionActive || this.arTracker.mode !== AR_SESSION_MODE.CAMERA_PASSTHROUGH_CV) {
+          try {
+            const res = await this.arTracker.startCameraAR();
+            if (res.success) {
+              this.ui.setTrackingModeLabel('CAMERA AR');
+              await this.handTracker.initMediaPipe();
+            }
+          } catch (e) {
+            console.warn('Camera request inside start training:', e);
+          }
+        }
+
+        this.scenarioDeployed = true;
+        this.isAnalysingRoom = false;
+        this.roomAnalysed = true;
+        this.ui.hideSetupOptions();
+        this.trainingManager.deployFireScenario();
+        this.ui.showFeedback('🔥 Fire scenario ignited on your room floor!');
+      },
       onRetry: () => {
         this.scenarioDeployed = false;
         this.roomScanProgress = 0;
+        this.lastChirpPct = 0;
+        this.isAnalysingRoom = false;
+        this.roomAnalysed = false;
         this.handScanProgress = 0;
+        this.ui.showSetupOptions();
+        this.ui.setRoomAnalysed(false);
         this.trainingManager.startRoomScanning();
       },
       onRunTests: async () => {
@@ -192,8 +258,8 @@ class SafeSphereApp {
 
     // 1. MOBILE TOUCH INTERACTIONS (100% Mobile Phone Physical Control — No Buttons!)
     const handleTouchStart = (e) => {
-      // Don't intercept top-bar icons (mute/test suite)
-      if (e.target.closest('.top-bar') || e.target.closest('#test-modal') || e.target.closest('#results-modal')) {
+      // Don't intercept top-bar icons, setup-options buttons, or modals
+      if (e.target.closest('.top-bar') || e.target.closest('#setup-options') || e.target.closest('#test-modal') || e.target.closest('#results-modal')) {
         return;
       }
 
@@ -207,6 +273,7 @@ class SafeSphereApp {
       // STAGE 0: Tap screen during room scanning or placement to immediately deploy fire
       if (stage === TRAINING_STAGE.SETUP || stage === TRAINING_STAGE.PLACEMENT || stage === TRAINING_STAGE.INTRO) {
         this.scenarioDeployed = true;
+        this.ui.hideSetupOptions();
         this.trainingManager.deployFireScenario();
         this.ui.showFeedback('🔥 Fire scenario ignited in your room!');
         return;
@@ -291,11 +358,12 @@ class SafeSphereApp {
 
     // 2. MOUSE / DESKTOP TESTING FALLBACK
     window.addEventListener('mousedown', (e) => {
-      if (e.target.closest('.top-bar') || e.target.closest('.modal-card')) return;
+      if (e.target.closest('.top-bar') || e.target.closest('#setup-options') || e.target.closest('.modal-card')) return;
 
       const stage = this.trainingManager.currentStage;
       if (stage === TRAINING_STAGE.SETUP || stage === TRAINING_STAGE.PLACEMENT || stage === TRAINING_STAGE.INTRO) {
         this.scenarioDeployed = true;
+        this.ui.hideSetupOptions();
         this.trainingManager.deployFireScenario();
         this.ui.showFeedback('🔥 Fire scenario ignited in your room!');
         return;
@@ -351,30 +419,41 @@ class SafeSphereApp {
     }
 
     // 2. ROOM SCANNING & HAND-TRIGGERED SCENARIO DEPLOYMENT
-    if (this.trainingManager.currentStage === TRAINING_STAGE.SETUP) {
-      this.roomScanProgress = (this.roomScanProgress || 0) + delta * 0.45;
+    if (this.trainingManager.currentStage === TRAINING_STAGE.SETUP && this.isAnalysingRoom) {
+      this.roomScanProgress = Math.min(1.0, (this.roomScanProgress || 0) + delta * 0.42);
       const pct = Math.min(100, Math.round(this.roomScanProgress * 100));
       this.ui.updateStage(TRAINING_STAGE.SETUP, {
-        badge: 'SCANNING',
-        instruction: `Move phone to scan room floor (${pct}%)`
+        badge: 'ANALYSING',
+        instruction: `Analysing room surfaces... (${pct}%)`
       });
 
-      // Animate floor reticle
-      if (this.arTracker.reticleGroup) {
-        const s = 1.0 + Math.sin(elapsedTime * 4.0) * 0.08;
-        this.arTracker.reticleGroup.scale.set(s, s, s);
+      // Audio chirps & haptic vibration every 25%
+      if (pct - (this.lastChirpPct || 0) >= 25) {
+        this.lastChirpPct = pct;
+        soundFx.playHandScanChirp();
+        if (navigator.vibrate) navigator.vibrate(25);
       }
 
       if (this.roomScanProgress >= 1.0) {
-        soundFx.playHandScanChirp();
+        this.isAnalysingRoom = false;
+        this.roomAnalysed = true;
+        this.lastChirpPct = 0;
+        soundFx.playCalibrationSuccess();
+        if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
+        if (this.arTracker.setReticleState) {
+          this.arTracker.setReticleState('locked');
+        }
+        this.ui.setRoomAnalysed(true);
         this.trainingManager.setStage(TRAINING_STAGE.PLACEMENT);
+        this.ui.showFeedback('✅ Room floor mapped! Ready to start training.');
       }
     } else if (this.trainingManager.currentStage === TRAINING_STAGE.PLACEMENT) {
-      // Room floor analyzed! Now analyse hand to deploy fire scenario
+      // Room floor analyzed! Now analyse hand to deploy fire scenario (or user taps START TRAINING)
       if (this.handTracker.isHandDetected && !this.scenarioDeployed) {
         this.handScanProgress = (this.handScanProgress || 0) + delta * 1.5;
         if (this.handScanProgress >= 0.75) {
           this.scenarioDeployed = true;
+          this.ui.hideSetupOptions();
           this.trainingManager.deployFireScenario();
           this.ui.showFeedback('🔥 Fire emergency scenario deployed in your room!');
         }
