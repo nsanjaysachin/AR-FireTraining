@@ -28,6 +28,11 @@ class SafeSphereApp {
     this.raycaster = new THREE.Raycaster();
     this.pointer = new THREE.Vector2();
 
+    // Hand scanner biometric state
+    this.handScanProgress = 0;
+    this.handCalibrationTriggered = false;
+    this.handScanChirpCooldown = 0;
+
     this.init3D();
     this.initSystems();
     this.setupInteractions();
@@ -49,7 +54,7 @@ class SafeSphereApp {
     );
     this.camera.position.set(0, 0.35, 0.5);
 
-    // 3. Renderer with transparent background for AR pass-through
+    // 3. Renderer with transparent background for realistic AR pass-through
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
       alpha: true,
@@ -77,7 +82,7 @@ class SafeSphereApp {
     sunLight.shadow.camera.far = 15;
     this.scene.add(sunLight);
 
-    // 5. Contact shadow ground plane
+    // 5. Contact shadow ground plane (Receives realistic shadows from fire and extinguisher)
     const groundGeo = new THREE.PlaneGeometry(15, 15);
     const groundMat = new THREE.ShadowMaterial({ opacity: 0.38 });
     const ground = new THREE.Mesh(groundGeo, groundMat);
@@ -109,10 +114,10 @@ class SafeSphereApp {
       this.scene
     );
 
-    // Anchor initial scenario in world coordinates
+    // Anchor initial scenario in world coordinates on detected floor surface
     this.arTracker.anchorScenario(this.extinguisher, this.fire);
 
-    // 5. Hand Tracking Engine (MediaPipe Hands with simulator fallback)
+    // 5. Hand Tracking Engine (MediaPipe Hands with computer vision)
     this.handTracker = new HandTrackingManager(
       this.arTracker.video,
       this.camera,
@@ -148,12 +153,18 @@ class SafeSphereApp {
       this.evaluator
     );
 
-    // Request camera and start tracking
-    const arResult = await this.arTracker.startCameraAR();
-    if (arResult.success) {
-      this.ui.setTrackingModeLabel('CAMERA AR');
-      await this.handTracker.initMediaPipe();
-    } else {
+    // Request camera and detect surroundings
+    try {
+      const arResult = await this.arTracker.startCameraAR();
+      if (arResult.success) {
+        this.ui.setTrackingModeLabel('CAMERA AR');
+        await this.handTracker.initMediaPipe();
+      } else {
+        this.ui.setTrackingModeLabel('3D SIMULATOR', true);
+        this.handTracker.setMode(TRACKING_MODE.SIMULATOR_FALLBACK);
+      }
+    } catch (err) {
+      console.warn('Initial camera setup deferred to user touch:', err);
       this.ui.setTrackingModeLabel('3D SIMULATOR', true);
       this.handTracker.setMode(TRACKING_MODE.SIMULATOR_FALLBACK);
     }
@@ -161,7 +172,23 @@ class SafeSphereApp {
 
   setupInteractions() {
     this.ui.setCallbacks({
-      onStart: () => {
+      onStart: async () => {
+        soundFx.init();
+        soundFx.resume();
+
+        // Ensure camera is started upon user interaction
+        if (!this.arTracker.isSessionActive || this.arTracker.mode !== AR_SESSION_MODE.CAMERA_PASSTHROUGH_CV) {
+          try {
+            const res = await this.arTracker.startCameraAR();
+            if (res.success) {
+              this.ui.setTrackingModeLabel('CAMERA AR');
+              await this.handTracker.initMediaPipe();
+            }
+          } catch (e) {
+            console.warn('Camera request inside user gesture:', e);
+          }
+        }
+
         this.trainingManager.startTraining();
       },
       onRetry: () => {
@@ -180,8 +207,8 @@ class SafeSphereApp {
 
     // 1. MOBILE TOUCH INTERACTIONS (100% Mobile Phone Physical Control — No Buttons!)
     const handleTouchStart = (e) => {
-      // Don't intercept UI overlay modals or top buttons
-      if (e.target.closest('.modal-card') || e.target.closest('.top-bar') || e.target.closest('button')) {
+      // Allow top-bar icons (mute/test suite)
+      if (e.target.closest('.top-bar') || e.target.closest('#test-modal') || e.target.closest('#results-modal')) {
         return;
       }
 
@@ -192,12 +219,19 @@ class SafeSphereApp {
 
       const stage = this.trainingManager.currentStage;
 
+      // STAGE 0: Start Screen Tap-Anywhere Fallback
+      if (stage === TRAINING_STAGE.INTRO || !this.trainingManager.isActive) {
+        this.ui.hideStartModal();
+        if (this.ui.callbacks.onStart) this.ui.callbacks.onStart();
+        return;
+      }
+
       // STAGE 1: Grab Extinguisher
       if (stage === TRAINING_STAGE.INSTRUCTION || stage === TRAINING_STAGE.PICKUP) {
         const success = this.trainingManager.triggerPickup(this.camera.position, this.camera.quaternion);
         if (success) {
           if (navigator.vibrate) navigator.vibrate(40);
-          this.ui.showFeedback('✅ Extinguisher grabbed! Pull safety pin (P).');
+          this.ui.showFeedback('✅ Extinguisher in hand! Pull safety pin (P).');
         }
       }
       // STAGE 2: Pull Safety Pin (P)
@@ -271,11 +305,17 @@ class SafeSphereApp {
 
     // 2. MOUSE / DESKTOP TESTING FALLBACK
     window.addEventListener('mousedown', (e) => {
-      if (e.target.closest('.modal-card') || e.target.closest('.top-bar') || e.target.closest('button')) {
+      if (e.target.closest('.top-bar') || e.target.closest('#test-modal') || e.target.closest('#results-modal')) {
         return;
       }
 
       const stage = this.trainingManager.currentStage;
+      if (stage === TRAINING_STAGE.INTRO || !this.trainingManager.isActive) {
+        this.ui.hideStartModal();
+        if (this.ui.callbacks.onStart) this.ui.callbacks.onStart();
+        return;
+      }
+
       if (stage === TRAINING_STAGE.INSTRUCTION || stage === TRAINING_STAGE.PICKUP) {
         this.trainingManager.triggerPickup(this.camera.position, this.camera.quaternion);
       } else if (stage === TRAINING_STAGE.PIN_PULL) {
@@ -289,7 +329,7 @@ class SafeSphereApp {
       this.trainingManager.setTouchSqueeze(false);
     });
 
-    // 3. KEYBOARD SHORTCUTS FOR ACCESSIBILITY / SIMULATOR
+    // 3. KEYBOARD SHORTCUTS FOR TESTING
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Space') {
         if (this.extinguisher.state === EXTINGUISHER_STATE.HELD) {
@@ -325,10 +365,45 @@ class SafeSphereApp {
       this.mediaPipeThrottle = 0;
     }
 
-    // 2. Update held extinguisher pose in HELD state
+    // 2. BIOMETRIC HAND SCANNER (Show hand to camera to analyse & start training)
+    if (!this.trainingManager.isActive) {
+      if (this.handTracker.isHandDetected) {
+        this.handScanProgress = (this.handScanProgress || 0) + delta * 1.35;
+        const percent = Math.min(100, Math.round(this.handScanProgress * 100));
+        this.ui.setHandScanProgress(
+          this.handScanProgress,
+          `✋ HAND DETECTED: ANALYZING BIOMETRICS (${percent}%)...`
+        );
+
+        if (!this.handScanChirpCooldown || performance.now() - this.handScanChirpCooldown > 260) {
+          soundFx.playHandScanChirp();
+          this.handScanChirpCooldown = performance.now();
+        }
+
+        if (this.handScanProgress >= 1.0 && !this.handCalibrationTriggered) {
+          this.handCalibrationTriggered = true;
+          soundFx.playCalibrationSuccess();
+          if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
+          this.ui.setHandScanProgress(1.0, '✅ HAND CALIBRATED! STARTING AR TRAINING...');
+
+          setTimeout(() => {
+            this.ui.hideStartModal();
+            this.trainingManager.startTraining();
+          }, 350);
+        }
+      } else {
+        this.handScanProgress = Math.max(0, (this.handScanProgress || 0) - delta * 0.45);
+        this.ui.setHandScanProgress(
+          this.handScanProgress,
+          '✋ SHOW HAND TO CAMERA TO ANALYSE & START'
+        );
+      }
+    }
+
+    // 3. Update held extinguisher pose in HELD state
     if (this.extinguisher.state === EXTINGUISHER_STATE.HELD) {
       if (this.handTracker.isHandDetected) {
-        // Physical hand in camera view
+        // Physical hand in camera view: anchor to real hand
         this.extinguisher.updateHeldPose(
           this.handTracker.handWorldPos,
           this.handTracker.handWorldQuat,
@@ -343,10 +418,10 @@ class SafeSphereApp {
       }
     }
 
-    // 3. Update Fire simulation physics & flame particles
+    // 4. Update Fire simulation physics & flame particles
     this.fire.update(delta, elapsedTime);
 
-    // 4. Update Spray system & calculate suppression intersection
+    // 5. Update Spray system & calculate suppression intersection
     const sprayResult = this.spray.update(
       delta,
       this.extinguisher,
@@ -366,13 +441,13 @@ class SafeSphereApp {
       }
     }
 
-    // 5. Update Training state machine
+    // 6. Update Training state machine
     this.trainingManager.update(delta);
 
-    // 6. Update AR reticle pulse
+    // 7. Update AR reticle pulse on floor surface
     this.arTracker.update(elapsedTime);
 
-    // 7. Render 3D scene
+    // 8. Render 3D scene
     this.renderer.render(this.scene, this.camera);
   }
 

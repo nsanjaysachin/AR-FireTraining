@@ -106,23 +106,37 @@ export class ARTrackingManager {
         this.container.insertBefore(this.video, this.container.firstChild);
       }
 
-      const constraints = {
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        },
-        audio: false
-      };
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera access requires HTTPS or is not supported in this mobile browser.');
+      }
 
-      this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+      // Try environment-facing back camera first for realistic surrounding detection
+      let stream = null;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        });
+      } catch (envErr) {
+        console.warn('Environment camera unavailable, falling back to any video camera:', envErr);
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false
+        });
+      }
+
+      this.stream = stream;
       this.video.srcObject = this.stream;
       await this.video.play();
 
       this.mode = AR_SESSION_MODE.CAMERA_PASSTHROUGH_CV;
       this.isSessionActive = true;
       this.isTrackingStable = true;
-      this.trackingStatusMessage = 'Real Camera AR Active (Stable World Anchor)';
+      this.trackingStatusMessage = 'Real Camera AR Active (Surroundings Detected)';
       if (this.simGrid) this.simGrid.visible = false;
 
       // Setup device orientation and motion if available on mobile

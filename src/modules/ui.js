@@ -152,35 +152,58 @@ export class SafeSphereUI {
       <!-- Pre-Session Start Screen Modal -->
       <div id="start-modal" class="modal-overlay active">
         <div class="modal-card hud-panel start-card">
-          <div class="brand-section" style="justify-content: center; margin-bottom: 12px;">
-            <div class="brand-logo" style="width: 44px; height: 44px;">
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <div class="brand-section" style="justify-content: center; margin-bottom: 8px;">
+            <div class="brand-logo" style="width: 38px; height: 38px;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
               </svg>
             </div>
           </div>
 
-          <h1 style="text-align: center; font-size: 1.45rem; font-weight: 800; letter-spacing: 0.5px; margin-bottom: 4px;">
+          <h1 style="text-align: center; font-size: 1.35rem; font-weight: 800; letter-spacing: 0.5px; margin-bottom: 2px;">
             SAFESPHERE AR
           </h1>
-          <p style="text-align: center; font-size: 0.8rem; color: #8B949E; margin-bottom: 18px; font-family: var(--font-mono);">
-            LIVE MOBILE AR FIRE EXTINGUISHER TRAINING (PASS)
+          <p style="text-align: center; font-size: 0.76rem; color: #8B949E; margin-bottom: 12px; font-family: var(--font-mono);">
+            SURROUNDING SCANNER & BIOMETRIC HAND AR
           </p>
 
-          <div class="mobile-features-box">
-            <div class="mobile-feat-title">📱 100% Mobile Phone Physical Interactions (No Buttons!)</div>
+          <!-- Holographic Hand Biometric Scanner -->
+          <div class="hand-scan-container" id="hand-scan-zone">
+            <div class="scan-radar-grid"></div>
+            <div class="scan-laser-line"></div>
+            <div class="hand-icon-hologram">
+              <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#38BDF8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v3"/>
+                <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v7"/>
+                <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/>
+                <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>
+              </svg>
+            </div>
+            <div id="hand-scan-label" class="hand-scan-status">
+              ✋ SHOW HAND TO CAMERA TO ANALYSE & START
+            </div>
+            <div class="hand-scan-progress-bar">
+              <div id="hand-scan-progress-fill" class="hand-scan-progress-fill"></div>
+            </div>
+          </div>
+
+          <div class="mobile-features-box" style="margin-top: 10px; margin-bottom: 14px;">
+            <div class="mobile-feat-title">📱 100% Mobile Phone Physical Controls:</div>
             <ul class="mobile-steps-list">
-              <li><strong>1. Grab Extinguisher:</strong> Reach hand into camera or tap 3D extinguisher on screen</li>
-              <li><strong>2. Pull Safety Pin (P):</strong> Pinch yellow pin in camera or swipe pin on screen</li>
-              <li><strong>3. Aim at Fuel Base (A):</strong> Physically point and tilt your mobile phone</li>
-              <li><strong>4. Squeeze Lever (S):</strong> Press and hold down phone screen (or clench fist)</li>
-              <li><strong>5. Sweep Flames (S):</strong> Physically sweep mobile phone side-to-side</li>
+              <li>• <strong>Extinguisher:</strong> Reach hand or tap on screen to pick up</li>
+              <li>• <strong>Safety Pin (P):</strong> Pinch or swipe yellow pin to unlock</li>
+              <li>• <strong>Aim (A):</strong> Physically point and tilt your mobile phone</li>
+              <li>• <strong>Squeeze (S):</strong> Press and hold phone screen (or clench fist)</li>
+              <li>• <strong>Sweep (S):</strong> Physically sweep mobile phone side-to-side</li>
             </ul>
           </div>
 
           <button id="btn-start-ar" class="btn btn-primary btn-big-start">
             ▶ START AR FIRE TRAINING
           </button>
+          <div style="font-size: 0.72rem; color: #8B949E; margin-top: 8px; font-family: var(--font-mono);">
+            Tap button, touch screen, or show hand to camera to begin
+          </div>
         </div>
       </div>
 
@@ -265,22 +288,41 @@ export class SafeSphereUI {
   }
 
   bindEvents() {
-    // Start AR Fire Training button (dismiss start modal and begin)
+    // Start AR Fire Training trigger (button, touch, pointer)
+    const triggerStart = (e) => {
+      if (e) {
+        e.stopPropagation();
+      }
+      this.hideStartModal();
+      if (this.callbacks.onStart) this.callbacks.onStart();
+    };
+
     const btnStart = document.getElementById('btn-start-ar');
     if (btnStart) {
-      btnStart.addEventListener('click', () => {
-        document.getElementById('start-modal').classList.remove('active');
-        if (this.callbacks.onStart) this.callbacks.onStart();
+      btnStart.addEventListener('click', triggerStart);
+      btnStart.addEventListener('touchend', triggerStart, { passive: false });
+      btnStart.addEventListener('pointerup', triggerStart);
+    }
+
+    const startCard = document.querySelector('.start-card');
+    if (startCard) {
+      startCard.addEventListener('pointerup', (e) => {
+        if (e.target.id === 'btn-start-ar') return; // Handled by button
+        triggerStart(e);
       });
     }
 
     // Audio mute button
     const btnAudio = document.getElementById('btn-audio-toggle');
     if (btnAudio) {
-      btnAudio.addEventListener('click', () => {
+      const toggleAudio = (e) => {
+        if (e) e.stopPropagation();
         const isMuted = soundFx.toggleMute();
-        document.getElementById('audio-icon').textContent = isMuted ? '🔇' : '🔊';
-      });
+        const icon = document.getElementById('audio-icon');
+        if (icon) icon.textContent = isMuted ? '🔇' : '🔊';
+      };
+      btnAudio.addEventListener('click', toggleAudio);
+      btnAudio.addEventListener('touchend', toggleAudio);
     }
 
     // Open Test Suite button
@@ -495,5 +537,24 @@ export class SafeSphereUI {
 
   setSimulatorToggleLabel(isSimulator) {
     // Handled in badges
+  }
+
+  setHandScanProgress(progress, statusText) {
+    const fill = document.getElementById('hand-scan-progress-fill');
+    const label = document.getElementById('hand-scan-label');
+    if (fill) {
+      fill.style.width = `${Math.min(100, Math.round(progress * 100))}%`;
+    }
+    if (label && statusText) {
+      label.textContent = statusText;
+    }
+  }
+
+  hideStartModal() {
+    const modal = document.getElementById('start-modal');
+    if (modal) {
+      modal.classList.remove('active');
+      modal.style.display = 'none';
+    }
   }
 }
