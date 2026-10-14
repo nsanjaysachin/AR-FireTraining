@@ -28,6 +28,7 @@ global.document = {
         getContext: () => ({
           fillRect: () => {},
           strokeRect: () => {},
+          clearRect: () => {},
           fillText: () => {},
           beginPath: () => {},
           arc: () => {},
@@ -35,6 +36,7 @@ global.document = {
           stroke: () => {},
           moveTo: () => {},
           lineTo: () => {},
+          bezierCurveTo: () => {},
           closePath: () => {},
           createRadialGradient: () => ({ addColorStop: () => {} })
         })

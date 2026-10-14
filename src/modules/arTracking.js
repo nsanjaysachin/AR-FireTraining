@@ -192,27 +192,34 @@ export class ARTrackingManager {
 
   setupOrientationSensors() {
     if (typeof window.DeviceOrientationEvent !== 'undefined') {
+      const degToRad = Math.PI / 180;
+      const zee = new THREE.Vector3(0, 0, 1);
+      const euler = new THREE.Euler();
+      const q0 = new THREE.Quaternion();
+      const q1 = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5)); // - PI/2 around the x-axis
+      let baseAlpha = null;
+
       const handleOrientation = (e) => {
         if (e.alpha === null || e.beta === null || e.gamma === null) return;
         this.hasOrientationSensor = true;
 
-        if (this.initialAlphaOffset === 0 && e.alpha !== 0) {
-          this.initialAlphaOffset = e.alpha;
+        if (baseAlpha === null && e.alpha !== null) {
+          baseAlpha = e.alpha;
         }
 
-        // Convert mobile sensor Euler angles to camera rotation
-        const degToRad = Math.PI / 180;
-        const beta = (e.beta - 90) * degToRad; // Pitch: 90 is upright phone
-        const gamma = -e.gamma * degToRad; // Roll
-        const alpha = -(e.alpha - this.initialAlphaOffset) * degToRad; // Yaw
+        const alpha = ((e.alpha || 0) - (baseAlpha || 0)) * degToRad;
+        const beta = (e.beta || 0) * degToRad;
+        const gamma = (e.gamma || 0) * degToRad;
+        const orient = ((window.screen && window.screen.orientation && window.screen.orientation.angle) || window.orientation || 0) * degToRad;
 
-        // Apply smooth slerp to AR camera
-        const euler = new THREE.Euler(beta, alpha, gamma, 'YXZ');
+        // DeviceOrientation standard transformation:
+        euler.set(beta, alpha, -gamma, 'YXZ');
         this.camera3D.quaternion.setFromEuler(euler);
+        this.camera3D.quaternion.multiply(q1); // orient out back camera
+        this.camera3D.quaternion.multiply(q0.setFromAxisAngle(zee, -orient));
       };
 
       if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-        // iOS 13+ permission request
         DeviceOrientationEvent.requestPermission()
           .then(res => {
             if (res === 'granted') {
@@ -324,14 +331,11 @@ export class ARTrackingManager {
 
   // Anchor the training scenario objects in the world
   anchorScenario(extinguisher, fire) {
-    // Extinguisher world anchor (e.g. 1.1m in front of user, slightly to right on table/floor)
     const extPos = new THREE.Vector3(0.18, -0.25, -1.05);
     extinguisher.setAnchor(extPos, 0);
 
-    // Fire world anchor (e.g. 2.4m in front of starting position)
-    const firePos = new THREE.Vector3(0, -0.3, -2.4);
-    fire.anchorPosition.copy(firePos);
-    fire.group.position.copy(firePos);
+    const firePos = new THREE.Vector3(0, -0.30, -2.0);
+    fire.setAnchor(firePos);
 
     this.trackingStatusMessage = 'Objects Spatially Anchored in Real Environment';
   }
@@ -340,26 +344,33 @@ export class ARTrackingManager {
   repositionAnchor(extinguisher, fire) {
     const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera3D.quaternion);
     fwd.y = 0;
-    fwd.normalize();
+    if (fwd.lengthSq() < 0.001) {
+      fwd.set(0, 0, -1);
+    } else {
+      fwd.normalize();
+    }
 
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.camera3D.quaternion);
     right.y = 0;
-    right.normalize();
+    if (right.lengthSq() < 0.001) {
+      right.set(1, 0, 0);
+    } else {
+      right.normalize();
+    }
 
     const camPos = this.camera3D.position;
 
-    // Place extinguisher 1.1m in front
+    // Place extinguisher 1.05m in front, slightly to right on floor
     const newExtPos = camPos.clone().addScaledVector(fwd, 1.05).addScaledVector(right, 0.18);
     newExtPos.y = -0.25;
     extinguisher.setAnchor(newExtPos, this.cameraYaw);
 
-    // Place fire 2.4m in front
-    const newFirePos = camPos.clone().addScaledVector(fwd, 2.4);
-    newFirePos.y = -0.3;
-    fire.anchorPosition.copy(newFirePos);
-    fire.group.position.copy(newFirePos);
+    // Place fire 2.0m in front directly on the floor plane
+    const newFirePos = camPos.clone().addScaledVector(fwd, 2.0);
+    newFirePos.y = -0.30;
+    fire.setAnchor(newFirePos);
 
-    this.trackingStatusMessage = 'Anchor Repositioned to Current View';
+    this.trackingStatusMessage = 'Anchor Locked to Room Floor';
   }
 
   update(time) {

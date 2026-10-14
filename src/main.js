@@ -480,7 +480,7 @@ class SafeSphereApp {
 
     // 4. Update Fire simulation physics & flame particles (only when deployed)
     if (this.fire.group.visible) {
-      this.fire.update(delta, elapsedTime);
+      this.fire.update(delta, elapsedTime, this.camera);
     }
 
     // 5. Update Spray system & calculate suppression intersection
