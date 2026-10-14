@@ -440,6 +440,20 @@ export class FireExtinguisher {
     this.anchorRotation.copy(this.group.rotation);
   }
 
+  getPinWorldPosition() {
+    if (!this.pinWorldPos) this.pinWorldPos = new THREE.Vector3();
+    if (this.pinGroup) {
+      this.pinGroup.getWorldPosition(this.pinWorldPos);
+    }
+    return this.pinWorldPos;
+  }
+
+  isHandNearPin(handPos) {
+    if (this.isPinPulled) return false;
+    const pinPos = this.getPinWorldPosition();
+    return pinPos.distanceTo(handPos) < 0.18;
+  }
+
   // PASS Step 1: Pull the Pin
   pullPin() {
     if (this.isPinPulled) return false;

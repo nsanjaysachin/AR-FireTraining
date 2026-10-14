@@ -228,16 +228,29 @@ export class HandTrackingManager {
     // Compute 3D pinch distance
     this.pinchDistance = thumbPos.distanceTo(indexPos);
 
-    // Hysteresis grab state
+    // Compute finger curl for fist grasp & squeeze detection
+    const d8 = this.jointMeshes[8].position.distanceTo(palmMesh.position);
+    const d12 = this.jointMeshes[12].position.distanceTo(palmMesh.position);
+    const d16 = this.jointMeshes[16].position.distanceTo(palmMesh.position);
+    const d20 = this.jointMeshes[20].position.distanceTo(palmMesh.position);
+    this.fingerCurl = (d8 + d12 + d16 + d20) / 4;
+
+    const isPinching = this.pinchDistance < this.grabThreshold;
+    const isFist = this.fingerCurl < 0.105;
+
+    // Hysteresis grab state: triggered by pinch or fist
     if (!this.isGrabbing) {
-      if (this.pinchDistance < this.grabThreshold) {
+      if (isPinching || isFist) {
         this.isGrabbing = true;
       }
     } else {
-      if (this.pinchDistance > this.releaseThreshold) {
+      if (this.pinchDistance > this.releaseThreshold && this.fingerCurl > 0.14) {
         this.isGrabbing = false;
       }
     }
+
+    // Physical squeeze gesture: clenching fist tightly while holding
+    this.isSqueezingGesture = this.isGrabbing && (this.fingerCurl < 0.088 || isPinching);
 
     // Hand orientation from wrist (0) to middle finger base (9)
     const wristPos = this.jointMeshes[0].position;
@@ -311,12 +324,16 @@ export class HandTrackingManager {
 
   getInteractionState(extinguisher) {
     const inRange = extinguisher.isHandInInteractionZone(this.handWorldPos);
+    const isNearPin = extinguisher.isHandNearPin ? (extinguisher.isHandNearPin(this.indexTipPos) || extinguisher.isHandNearPin(this.handWorldPos)) : false;
     return {
       mode: this.mode,
       isHandDetected: this.isHandDetected,
       inRange: inRange,
+      isNearPin: isNearPin,
       isGrabbing: this.isGrabbing,
+      isSqueezingGesture: !!this.isSqueezingGesture,
       pinchDistance: this.pinchDistance,
+      fingerCurl: this.fingerCurl || 0.2,
       handPos: this.handWorldPos,
       handQuat: this.handWorldQuat
     };

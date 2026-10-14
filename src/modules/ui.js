@@ -17,6 +17,7 @@ export class SafeSphereUI {
     this.app.innerHTML = `
       <div id="canvas-container"></div>
 
+      <!-- Live Mobile AR HUD (Zero action buttons during training) -->
       <div id="hud-overlay">
         <!-- Top Status Bar -->
         <header class="top-bar hud-panel hud-interactive">
@@ -47,6 +48,10 @@ export class SafeSphereUI {
 
             <button id="btn-audio-toggle" class="btn btn-icon-only" title="Toggle Sound">
               <span id="audio-icon">🔊</span>
+            </button>
+
+            <button id="btn-open-tests" class="btn btn-icon-only btn-secondary" title="Technical Diagnostics (10 Acceptance Tests)">
+              <span>🧪</span>
             </button>
           </div>
         </header>
@@ -119,38 +124,63 @@ export class SafeSphereUI {
           </svg>
         </div>
 
-        <!-- Bottom Guidance Ribbon & Controls -->
+        <!-- Bottom Live Guidance Ribbon (Pure physical mobile interaction) -->
         <div class="hud-bottom-section">
           <div class="guidance-ribbon hud-panel hud-interactive">
-            <div id="stage-badge" class="guidance-stage-tag">STANDBY</div>
+            <div class="guidance-header-line">
+              <div id="stage-badge" class="guidance-stage-tag">STANDBY</div>
+              <div id="spray-active-tag" class="spray-active-tag">🔴 DISCHARGING POWDER</div>
+            </div>
             <div id="guidance-title" class="guidance-title">SafeSphere AR Fire Emergency Simulation</div>
             <div id="guidance-instruction" class="guidance-instruction">
-              Click "Start AR Fire Training" to initialize the simulation and anchor the extinguisher in your room.
+              Touch and hold screen to spray powder. Physically sweep phone side-to-side across the base of the fire!
             </div>
+
+            <!-- Dynamic Sweep Gauge -->
+            <div id="sweep-meter-container" class="sweep-meter-box">
+              <span class="sweep-meter-title">HORIZONTAL SWEEP:</span>
+              <div class="sweep-meter-bar">
+                <div id="sweep-meter-fill" class="sweep-meter-fill"></div>
+              </div>
+            </div>
+
             <div id="feedback-banner" class="feedback-banner"></div>
           </div>
+        </div>
+      </div>
 
-          <!-- Direct Action Bar with prominent Start Button -->
-          <div class="action-bar hud-panel hud-interactive">
-            <button id="btn-start" class="btn btn-start-training" title="Start AR Fire Training Session">
-              ▶ START AR FIRE TRAINING
-            </button>
-            <button id="btn-pull-pin" class="btn" title="Disengage safety pin (PASS: P)">
-              ⚡ PULL PIN (P)
-            </button>
-            <button id="btn-squeeze" class="btn" title="Press and hold to discharge extinguishing powder (PASS: S)">
-              🌊 SQUEEZE LEVER (S)
-            </button>
-            <button id="btn-reposition" class="btn" title="Reposition AR Anchor in front of current view">
-              📍 REPOSITION ANCHOR
-            </button>
-            <button id="btn-toggle-mode" class="btn" title="Toggle between Camera CV and 3D Simulator">
-              🔄 SWITCH MODE
-            </button>
-            <button id="btn-test-suite" class="btn btn-secondary" title="Run 10-Test Diagnostic Acceptance Suite">
-              🧪 DIAGNOSTIC TESTS
-            </button>
+      <!-- Pre-Session Start Screen Modal -->
+      <div id="start-modal" class="modal-overlay active">
+        <div class="modal-card hud-panel start-card">
+          <div class="brand-section" style="justify-content: center; margin-bottom: 12px;">
+            <div class="brand-logo" style="width: 44px; height: 44px;">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+              </svg>
+            </div>
           </div>
+
+          <h1 style="text-align: center; font-size: 1.45rem; font-weight: 800; letter-spacing: 0.5px; margin-bottom: 4px;">
+            SAFESPHERE AR
+          </h1>
+          <p style="text-align: center; font-size: 0.8rem; color: #8B949E; margin-bottom: 18px; font-family: var(--font-mono);">
+            LIVE MOBILE AR FIRE EXTINGUISHER TRAINING (PASS)
+          </p>
+
+          <div class="mobile-features-box">
+            <div class="mobile-feat-title">📱 100% Mobile Phone Physical Interactions (No Buttons!)</div>
+            <ul class="mobile-steps-list">
+              <li><strong>1. Grab Extinguisher:</strong> Reach hand into camera or tap 3D extinguisher on screen</li>
+              <li><strong>2. Pull Safety Pin (P):</strong> Pinch yellow pin in camera or swipe pin on screen</li>
+              <li><strong>3. Aim at Fuel Base (A):</strong> Physically point and tilt your mobile phone</li>
+              <li><strong>4. Squeeze Lever (S):</strong> Press and hold down phone screen (or clench fist)</li>
+              <li><strong>5. Sweep Flames (S):</strong> Physically sweep mobile phone side-to-side</li>
+            </ul>
+          </div>
+
+          <button id="btn-start-ar" class="btn btn-primary btn-big-start">
+            ▶ START AR FIRE TRAINING
+          </button>
         </div>
       </div>
 
@@ -235,115 +265,119 @@ export class SafeSphereUI {
   }
 
   bindEvents() {
-    // Start AR Fire Training button
-    const btnStart = document.getElementById('btn-start');
-    btnStart.addEventListener('click', () => {
-      btnStart.textContent = '🔄 RESTART SESSION';
-      if (this.callbacks.onStart) this.callbacks.onStart();
-    });
-
-    // Pull pin button
-    document.getElementById('btn-pull-pin').addEventListener('click', () => {
-      if (this.callbacks.onPullPin) this.callbacks.onPullPin();
-    });
-
-    // Squeeze lever button (hold to spray, release to stop)
-    const btnSqueeze = document.getElementById('btn-squeeze');
-    let isSqueezing = false;
-
-    const startSqueeze = (e) => {
-      e.preventDefault();
-      if (!isSqueezing) {
-        isSqueezing = true;
-        btnSqueeze.classList.add('btn-active-squeeze');
-        if (this.callbacks.onSqueeze) this.callbacks.onSqueeze(true);
-      }
-    };
-
-    const stopSqueeze = (e) => {
-      e.preventDefault();
-      if (isSqueezing) {
-        isSqueezing = false;
-        btnSqueeze.classList.remove('btn-active-squeeze');
-        if (this.callbacks.onSqueeze) this.callbacks.onSqueeze(false);
-      }
-    };
-
-    btnSqueeze.addEventListener('mousedown', startSqueeze);
-    window.addEventListener('mouseup', stopSqueeze);
-    btnSqueeze.addEventListener('touchstart', startSqueeze, { passive: false });
-    window.addEventListener('touchend', stopSqueeze);
-
-    // Reposition anchor button
-    document.getElementById('btn-reposition').addEventListener('click', () => {
-      if (this.callbacks.onReposition) this.callbacks.onReposition();
-    });
-
-    // Mode toggle button (Camera CV vs Simulator Fallback)
-    document.getElementById('btn-toggle-mode').addEventListener('click', () => {
-      if (this.callbacks.onToggleMode) this.callbacks.onToggleMode();
-    });
+    // Start AR Fire Training button (dismiss start modal and begin)
+    const btnStart = document.getElementById('btn-start-ar');
+    if (btnStart) {
+      btnStart.addEventListener('click', () => {
+        document.getElementById('start-modal').classList.remove('active');
+        if (this.callbacks.onStart) this.callbacks.onStart();
+      });
+    }
 
     // Audio mute button
-    document.getElementById('btn-audio-toggle').addEventListener('click', () => {
-      const isMuted = soundFx.toggleMute();
-      document.getElementById('audio-icon').textContent = isMuted ? '🔇' : '🔊';
-    });
+    const btnAudio = document.getElementById('btn-audio-toggle');
+    if (btnAudio) {
+      btnAudio.addEventListener('click', () => {
+        const isMuted = soundFx.toggleMute();
+        document.getElementById('audio-icon').textContent = isMuted ? '🔇' : '🔊';
+      });
+    }
 
-    // Test Suite button
-    document.getElementById('btn-test-suite').addEventListener('click', () => {
-      document.getElementById('test-modal').classList.add('active');
-    });
+    // Open Test Suite button
+    const btnOpenTests = document.getElementById('btn-open-tests');
+    if (btnOpenTests) {
+      btnOpenTests.addEventListener('click', () => {
+        document.getElementById('test-modal').classList.add('active');
+      });
+    }
 
-    document.getElementById('btn-close-tests').addEventListener('click', () => {
-      document.getElementById('test-modal').classList.remove('active');
-    });
+    const btnCloseTests = document.getElementById('btn-close-tests');
+    if (btnCloseTests) {
+      btnCloseTests.addEventListener('click', () => {
+        document.getElementById('test-modal').classList.remove('active');
+      });
+    }
 
-    document.getElementById('btn-run-tests').addEventListener('click', () => {
-      if (this.callbacks.onRunTests) this.callbacks.onRunTests();
-    });
+    const btnRunTests = document.getElementById('btn-run-tests');
+    if (btnRunTests) {
+      btnRunTests.addEventListener('click', () => {
+        if (this.callbacks.onRunTests) this.callbacks.onRunTests();
+      });
+    }
 
     // Results modal buttons
-    document.getElementById('btn-retry').addEventListener('click', () => {
-      document.getElementById('results-modal').classList.remove('active');
-      if (this.callbacks.onRetry) this.callbacks.onRetry();
-    });
+    const btnRetry = document.getElementById('btn-retry');
+    if (btnRetry) {
+      btnRetry.addEventListener('click', () => {
+        document.getElementById('results-modal').classList.remove('active');
+        if (this.callbacks.onRetry) this.callbacks.onRetry();
+      });
+    }
 
-    document.getElementById('btn-close-results').addEventListener('click', () => {
-      document.getElementById('results-modal').classList.remove('active');
-    });
+    const btnCloseResults = document.getElementById('btn-close-results');
+    if (btnCloseResults) {
+      btnCloseResults.addEventListener('click', () => {
+        document.getElementById('results-modal').classList.remove('active');
+      });
+    }
 
     // Print / PDF Export
-    document.getElementById('btn-print-report').addEventListener('click', () => {
-      window.print();
-    });
+    const btnPrint = document.getElementById('btn-print-report');
+    if (btnPrint) {
+      btnPrint.addEventListener('click', () => {
+        window.print();
+      });
+    }
   }
 
   updateStage(stage, prompt) {
-    document.getElementById('stage-badge').textContent = prompt.badge;
-    document.getElementById('guidance-title').textContent = prompt.title;
-    document.getElementById('guidance-instruction').textContent = prompt.instruction;
+    const stageBadge = document.getElementById('stage-badge');
+    const guidanceTitle = document.getElementById('guidance-title');
+    const guidanceInstruction = document.getElementById('guidance-instruction');
+
+    if (stageBadge) stageBadge.textContent = prompt.badge;
+    if (guidanceTitle) guidanceTitle.textContent = prompt.title;
+    if (guidanceInstruction) guidanceInstruction.textContent = prompt.instruction;
   }
 
   updateTick(data) {
     // Format timer
     const mins = Math.floor(data.elapsed / 60);
     const secs = Math.floor(data.elapsed % 60);
-    document.getElementById('timer-display').textContent =
-      `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    const timerDisplay = document.getElementById('timer-display');
+    if (timerDisplay) {
+      timerDisplay.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
 
     // Fire Health
     const healthPercent = Math.round(data.fireHealth);
-    document.getElementById('fire-health-val').textContent = `${healthPercent}%`;
-    document.getElementById('fire-bar-fill').style.width = `${healthPercent}%`;
+    const healthVal = document.getElementById('fire-health-val');
+    const healthFill = document.getElementById('fire-bar-fill');
+    if (healthVal) healthVal.textContent = `${healthPercent}%`;
+    if (healthFill) healthFill.style.width = `${healthPercent}%`;
 
     // Distance
     const distEl = document.getElementById('distance-val');
-    distEl.textContent = `${data.distToFire.toFixed(1)} m`;
-    if (data.distToFire < 1.6) {
-      distEl.className = 'distance-val distance-danger';
-    } else {
-      distEl.className = 'distance-val';
+    if (distEl) {
+      distEl.textContent = `${data.distToFire.toFixed(1)} m`;
+      if (data.distToFire < 1.6) {
+        distEl.className = 'distance-val distance-danger';
+      } else {
+        distEl.className = 'distance-val';
+      }
+    }
+
+    // Spray tag active
+    const sprayTag = document.getElementById('spray-active-tag');
+    if (sprayTag) {
+      sprayTag.style.display = data.isSqueezing ? 'inline-block' : 'none';
+    }
+
+    // Sweep meter fill
+    const sweepFill = document.getElementById('sweep-meter-fill');
+    if (sweepFill) {
+      const sweepPercent = data.passState.S2 ? 100 : Math.min(100, Math.round((data.fireHealth < 95 ? (100 - data.fireHealth) * 1.05 : 0)));
+      sweepFill.style.width = `${sweepPercent}%`;
     }
 
     // PASS status updates
@@ -356,17 +390,19 @@ export class SafeSphereUI {
     const handStatusPill = document.getElementById('hand-status-badge');
     const handStatusText = document.getElementById('hand-status-text');
 
-    if (data.handState.mode === TRACKING_MODE.SIMULATOR_FALLBACK) {
-      handStatusPill.className = 'badge badge-warning';
-      handStatusText.textContent = 'SIMULATOR POINTER';
-    } else if (data.handState.isHandDetected) {
-      handStatusPill.className = 'badge badge-active';
-      handStatusText.textContent = data.handState.isGrabbing
-        ? 'HAND: GRABBING'
-        : (data.handState.inRange ? 'HAND: IN REACH' : 'HAND DETECTED');
-    } else {
-      handStatusPill.className = 'badge';
-      handStatusText.textContent = 'HAND SEARCHING';
+    if (handStatusPill && handStatusText) {
+      if (data.handState.mode === TRACKING_MODE.SIMULATOR_FALLBACK) {
+        handStatusPill.className = 'badge badge-warning';
+        handStatusText.textContent = 'SIMULATOR POINTER';
+      } else if (data.handState.isHandDetected) {
+        handStatusPill.className = 'badge badge-active';
+        handStatusText.textContent = data.handState.isGrabbing
+          ? 'HAND: GRABBING'
+          : (data.handState.inRange ? 'HAND: IN REACH' : 'HAND DETECTED');
+      } else {
+        handStatusPill.className = 'badge';
+        handStatusText.textContent = 'HAND SEARCHING';
+      }
     }
   }
 
@@ -384,6 +420,7 @@ export class SafeSphereUI {
 
   showFeedback(text) {
     const banner = document.getElementById('feedback-banner');
+    if (!banner) return;
     if (!text) {
       banner.className = 'feedback-banner';
       banner.textContent = '';
@@ -394,29 +431,43 @@ export class SafeSphereUI {
   }
 
   showResults(report) {
-    document.getElementById('final-score-val').textContent = report.totalScore;
-    document.getElementById('res-grade-val').textContent = `Grade: ${report.grade || 'A+ (Exemplary)'}`;
-    document.getElementById('res-total-time').textContent = `${report.completionTime} s`;
-    document.getElementById('res-pickup-time').textContent = `${report.pickupTime} s`;
-    document.getElementById('res-pin-time').textContent = `${report.pinPullTime} s`;
-    document.getElementById('res-aim-time').textContent = `${report.aimTime} s`;
-    document.getElementById('res-accuracy').textContent = `${report.accuracy}%`;
-    document.getElementById('res-sweep').textContent = report.passCompleted.S2 ? 'PASS (10/10)' : `${report.sweepScore} s`;
-    document.getElementById('res-corrections').textContent = report.aimCorrectionsCount;
+    const finalScore = document.getElementById('final-score-val');
+    const resGrade = document.getElementById('res-grade-val');
+    const resTotal = document.getElementById('res-total-time');
+    const resPickup = document.getElementById('res-pickup-time');
+    const resPin = document.getElementById('res-pin-time');
+    const resAim = document.getElementById('res-aim-time');
+    const resAcc = document.getElementById('res-accuracy');
+    const resSweep = document.getElementById('res-sweep');
+    const resCorr = document.getElementById('res-corrections');
+
+    if (finalScore) finalScore.textContent = report.totalScore;
+    if (resGrade) resGrade.textContent = `Grade: ${report.grade || 'A+ (Exemplary)'}`;
+    if (resTotal) resTotal.textContent = `${report.completionTime} s`;
+    if (resPickup) resPickup.textContent = `${report.pickupTime} s`;
+    if (resPin) resPin.textContent = `${report.pinPullTime} s`;
+    if (resAim) resAim.textContent = `${report.aimTime} s`;
+    if (resAcc) resAcc.textContent = `${report.accuracy}%`;
+    if (resSweep) resSweep.textContent = report.passCompleted.S2 ? 'PASS (10/10)' : `${report.sweepScore} s`;
+    if (resCorr) resCorr.textContent = report.aimCorrectionsCount;
 
     const tipsContainer = document.getElementById('res-tips-list');
-    tipsContainer.innerHTML = '';
-    report.tips.forEach(tip => {
-      const li = document.createElement('li');
-      li.textContent = tip;
-      tipsContainer.appendChild(li);
-    });
+    if (tipsContainer) {
+      tipsContainer.innerHTML = '';
+      report.tips.forEach(tip => {
+        const li = document.createElement('li');
+        li.textContent = tip;
+        tipsContainer.appendChild(li);
+      });
+    }
 
-    document.getElementById('results-modal').classList.add('active');
+    const modal = document.getElementById('results-modal');
+    if (modal) modal.classList.add('active');
   }
 
   renderTestResults(results) {
     const container = document.getElementById('test-report-list');
+    if (!container) return;
     container.innerHTML = '';
 
     results.forEach(res => {
@@ -438,12 +489,11 @@ export class SafeSphereUI {
   setTrackingModeLabel(label, isWarning = false) {
     const badge = document.getElementById('ar-status-badge');
     const text = document.getElementById('ar-status-text');
-    text.textContent = label;
-    badge.className = isWarning ? 'badge badge-warning' : 'badge badge-active';
+    if (text) text.textContent = label;
+    if (badge) badge.className = isWarning ? 'badge badge-warning' : 'badge badge-active';
   }
 
   setSimulatorToggleLabel(isSimulator) {
-    const btn = document.getElementById('btn-toggle-mode');
-    btn.textContent = isSimulator ? '📷 CAMERA AR' : '🔄 3D SIMULATOR';
+    // Handled in badges
   }
 }

@@ -25,54 +25,54 @@ export class TrainingManager {
 
     this.currentStage = TRAINING_STAGE.INTRO;
     this.elapsedSessionTime = 0;
-    this.isActive = false;
+    this.touchSqueezeActive = false;
 
     // Guidance text mappings
     this.stagePrompts = {
       [TRAINING_STAGE.INTRO]: {
-        title: 'SafeSphere AR Fire Emergency Simulation',
-        instruction: 'Welcome to SafeSphere. Prepare to practice real-world fire extinguisher response using PASS protocols and tracked hand interaction.',
-        badge: 'STANDBY'
+        title: 'SafeSphere Live AR Fire Training',
+        instruction: 'Tap "START AR FIRE TRAINING" to begin live spatial tracking.',
+        badge: 'READY'
       },
       [TRAINING_STAGE.SETUP]: {
-        title: 'AR Sensor & Environment Calibration',
-        instruction: 'Allow camera permissions. Bring your hand into the camera view to calibrate computer vision tracking.',
-        badge: 'CALIBRATING'
+        title: 'Calibrating Camera AR',
+        instruction: 'Point device at floor/table. Camera tracking active.',
+        badge: 'TRACKING'
       },
       [TRAINING_STAGE.PLACEMENT]: {
-        title: 'Surface Placement & Spatial Anchor',
-        instruction: 'Scan your floor or table. Tap "Confirm Placement" to anchor the extinguisher and fire scenario in your real space.',
-        badge: 'ANCHORING'
+        title: 'Extinguisher Anchored in Room',
+        instruction: 'Extinguisher and fire scenario anchored in physical space.',
+        badge: 'ANCHORED'
       },
       [TRAINING_STAGE.INSTRUCTION]: {
-        title: 'PASS Step 1: Reach for Extinguisher',
-        instruction: 'Extend your hand toward the red extinguisher handle. The halo will glow green when you are within reach distance.',
-        badge: 'APPROACH HANDLE'
+        title: 'Step 1: Reach for Extinguisher',
+        instruction: 'Reach your hand toward the extinguisher handle to pick it up.',
+        badge: 'REACH HANDLE'
       },
       [TRAINING_STAGE.PICKUP]: {
-        title: 'Perform Grab Gesture',
-        instruction: 'Pinch thumb and index finger together (or make a firm fist) to grasp the handle and lift the extinguisher.',
-        badge: 'GRAB OBJECT'
+        title: 'Grasp the Handle',
+        instruction: 'Close your hand (or tap extinguisher) to pick it up.',
+        badge: 'GRAB HANDLE'
       },
       [TRAINING_STAGE.PIN_PULL]: {
-        title: 'PASS Step 1: Pull the Safety Pin (P)',
-        instruction: 'Disengage the safety mechanism. Tap "Pull Pin" or pinch the yellow safety seal to unlock the squeeze lever.',
+        title: 'PASS Step 1: Pull Safety Pin (P)',
+        instruction: 'Pinch the yellow pin in camera or tap it on screen to unlock.',
         badge: 'P — PULL PIN'
       },
       [TRAINING_STAGE.APPROACH_AIM]: {
-        title: 'PASS Step 2: Aim at the Base (A)',
-        instruction: 'Maintain a safe standoff distance (1.8m – 2.5m). Direct the nozzle toward the FUEL BED, not the smoke!',
+        title: 'PASS Step 2: Aim at Base (A)',
+        instruction: 'Point phone / nozzle directly at the FUEL BASE of the fire.',
         badge: 'A — AIM BASE'
       },
       [TRAINING_STAGE.SUPPRESSION]: {
         title: 'PASS Step 3 & 4: Squeeze & Sweep (S)',
-        instruction: 'Squeeze the handle and sweep the nozzle smoothly from side to side across the base of the fire.',
+        instruction: 'Hold phone screen (or clench fist) to spray. SWEEP side to side!',
         badge: 'S — SQUEEZE & SWEEP'
       },
       [TRAINING_STAGE.COMPLETION]: {
-        title: 'Fire Extinguished — Session Complete',
-        instruction: 'Hazard neutralized! Review your PASS technique accuracy, reaction times, and training score.',
-        badge: 'EVALUATION READY'
+        title: 'Fire Neutralized — Complete!',
+        instruction: 'Fire extinguished successfully. Performance report generated.',
+        badge: 'EVALUATION'
       }
     };
   }
@@ -136,6 +136,11 @@ export class TrainingManager {
           break;
         }
 
+        // Live physical pinch gesture on safety pin
+        if (handState.isNearPin && handState.isGrabbing) {
+          this.triggerPinPull();
+        }
+
         // If pin has been pulled
         if (this.extinguisher.isPinPulled) {
           this.evaluator.recordPinPull();
@@ -155,7 +160,7 @@ export class TrainingManager {
         const toFire = fireBasePos.clone().sub(sprayTransform.origin).normalize();
         const dot = sprayTransform.direction.dot(toFire);
 
-        // If aiming toward fire base (dot > 0.85 = within ~30 deg)
+        // If aiming toward fire base (dot > 0.82 = within ~34 deg)
         if (dot > 0.82) {
           this.evaluator.recordAim(true);
           this.setStage(TRAINING_STAGE.SUPPRESSION);
@@ -169,8 +174,15 @@ export class TrainingManager {
           break;
         }
 
+        // Live physical squeeze: hand gesture or mobile touch
+        const shouldSqueeze = handState.isSqueezingGesture || this.touchSqueezeActive;
+        if (this.extinguisher.isPinPulled) {
+          this.extinguisher.setSqueezing(shouldSqueeze);
+        }
+
         if (this.fire.isExtinguished) {
           this.isActive = false;
+          this.extinguisher.setSqueezing(false);
           const report = this.evaluator.recordCompletion(true);
           this.setStage(TRAINING_STAGE.COMPLETION);
           if (this.ui.onComplete) {
@@ -196,7 +208,19 @@ export class TrainingManager {
     }
   }
 
-  // Trigger manual pin pull from UI button or gesture
+  // Trigger pickup from touch or hand grab
+  triggerPickup(pos = null, quat = null) {
+    const p = pos || this.arTracker.camera3D.position;
+    const q = quat || this.arTracker.camera3D.quaternion;
+    const success = this.extinguisher.grab(p, q);
+    if (success) {
+      this.evaluator.recordPickup();
+      this.setStage(this.extinguisher.isPinPulled ? TRAINING_STAGE.APPROACH_AIM : TRAINING_STAGE.PIN_PULL);
+    }
+    return success;
+  }
+
+  // Trigger manual pin pull from gesture or direct touch
   triggerPinPull() {
     const success = this.extinguisher.pullPin();
     if (success) {
@@ -206,6 +230,14 @@ export class TrainingManager {
       }
     }
     return success;
+  }
+
+  // Mobile screen touch-hold squeeze
+  setTouchSqueeze(active) {
+    this.touchSqueezeActive = active;
+    if (this.currentStage === TRAINING_STAGE.SUPPRESSION && this.extinguisher.isPinPulled) {
+      this.extinguisher.setSqueezing(active);
+    }
   }
 
   // Squeeze toggle from UI or hand gesture

@@ -125,8 +125,9 @@ export class ARTrackingManager {
       this.trackingStatusMessage = 'Real Camera AR Active (Stable World Anchor)';
       if (this.simGrid) this.simGrid.visible = false;
 
-      // Setup device orientation if available on mobile
+      // Setup device orientation and motion if available on mobile
       this.setupOrientationSensors();
+      this.setupMotionSensors();
 
       return { success: true, mode: this.mode };
     } catch (err) {
@@ -182,6 +183,50 @@ export class ARTrackingManager {
           .catch(() => {});
       } else {
         window.addEventListener('deviceorientation', handleOrientation);
+      }
+    }
+  }
+
+  setupMotionSensors() {
+    if (typeof window.DeviceMotionEvent !== 'undefined') {
+      let lastStepTime = 0;
+      let lastAccMag = 9.8;
+
+      const handleMotion = (e) => {
+        // Accelerometer physical step detection (walking toward fire)
+        const acc = e.accelerationIncludingGravity || e.acceleration;
+        if (acc && acc.x !== null && acc.y !== null && acc.z !== null) {
+          const mag = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
+          const deltaAcc = Math.abs(mag - lastAccMag);
+          lastAccMag = mag;
+
+          const now = performance.now();
+          // Step detection: acceleration surge > 2.0 m/s^2 and min 320ms between steps
+          if (deltaAcc > 2.0 && (now - lastStepTime) > 320) {
+            lastStepTime = now;
+            // Move camera forward in direction of camera view
+            const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera3D.quaternion);
+            fwd.y = 0;
+            fwd.normalize();
+            // Standoff clamp: user can step up to 1.7m from fire
+            if (this.cameraPos.z > -1.8) {
+              this.cameraPos.addScaledVector(fwd, 0.25);
+              this.camera3D.position.copy(this.cameraPos);
+            }
+          }
+        }
+      };
+
+      if (typeof DeviceMotionEvent.requestPermission === 'function') {
+        DeviceMotionEvent.requestPermission()
+          .then(res => {
+            if (res === 'granted') {
+              window.addEventListener('devicemotion', handleMotion);
+            }
+          })
+          .catch(() => {});
+      } else {
+        window.addEventListener('devicemotion', handleMotion);
       }
     }
   }
