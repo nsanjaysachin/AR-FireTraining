@@ -11,6 +11,7 @@ import { PerformanceEvaluator } from './modules/evaluation.js';
 import { TrainingManager, TRAINING_STAGE } from './modules/trainingManager.js';
 import { SafeSphereUI } from './modules/ui.js';
 import { FireRoomEnvironment } from './modules/fireRoom.js';
+import { CharacterHands } from './modules/characterHands.js';
 import { AcceptanceTestSuite } from './modules/testSuite.js';
 
 class SafeSphereApp {
@@ -150,23 +151,15 @@ class SafeSphereApp {
       this.evaluator
     );
 
-    // Start directly inside the VR accident room with the emergency active!
-    this.ui.setTrackingModeLabel('VR ACCIDENT ROOM');
+    // 9. First-Person Character Hands & Protective Arms Rig
+    this.characterHands = new CharacterHands(this.camera);
+
+    // Pure 3D VR Room Game Simulation — 100% Computer Vision Camera Free!
+    this.handTracker.setMode(TRACKING_MODE.SIMULATOR_FALLBACK);
+    this.ui.setTrackingModeLabel('3D VR GAME');
     this.trainingManager.deployFireScenario();
     this.scenarioDeployed = true;
     this.ui.hideSetupOptions();
-
-    // Optionally connect camera for live hand gesture tracking
-    try {
-      const arResult = await this.arTracker.startCameraAR();
-      if (arResult.success) {
-        await this.handTracker.initMediaPipe();
-      } else {
-        this.handTracker.setMode(TRACKING_MODE.SIMULATOR_FALLBACK);
-      }
-    } catch (err) {
-      this.handTracker.setMode(TRACKING_MODE.SIMULATOR_FALLBACK);
-    }
   }
 
   setupInteractions() {
@@ -176,9 +169,33 @@ class SafeSphereApp {
         soundFx.resume();
         const success = this.trainingManager.triggerPickup(null, null, true);
         if (success) {
+          if (this.characterHands) this.characterHands.setVisible(true);
           if (navigator.vibrate) navigator.vibrate(40);
-          this.ui.showFeedback('✅ Extinguisher grabbed! Pull safety pin (P key or tap).');
+          this.ui.showFeedback('✅ Extinguisher grabbed! Pull safety pin (P key or tap PIN).');
         }
+      },
+      onPinPull: () => {
+        soundFx.init();
+        soundFx.resume();
+        const success = this.trainingManager.triggerPinPull();
+        if (success) {
+          if (this.characterHands) this.characterHands.triggerPinPullAnimation();
+          if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
+          this.ui.showFeedback('✅ Safety pin pulled! Aim nozzle at base of fire.');
+        }
+      },
+      onSprayHold: (active) => {
+        if (this.extinguisher.state !== EXTINGUISHER_STATE.HELD) {
+          this.ui.showFeedback('⚠️ Grab the extinguisher first!');
+          return;
+        }
+        if (!this.extinguisher.isPinPulled) {
+          this.ui.showFeedback('⚠️ Pull the safety pin (P) before spraying!');
+          return;
+        }
+        this.trainingManager.setTouchSqueeze(active);
+        if (this.characterHands) this.characterHands.setSqueezing(active);
+        if (active && navigator.vibrate) navigator.vibrate(25);
       },
       onRestartScenario: () => {
         soundFx.init();
@@ -189,6 +206,10 @@ class SafeSphereApp {
           this.arTracker.cameraYaw = 0;
           this.arTracker.cameraPitch = 0;
           this.arTracker.cameraPos.set(0, 0.45, 1.2);
+        }
+        if (this.characterHands) {
+          this.characterHands.setVisible(false);
+          this.characterHands.setSqueezing(false);
         }
         this.trainingManager.restart();
         this.ui.showFeedback('🔄 Mission restarted! Pick up the extinguisher and extinguish the fire.');
@@ -201,8 +222,6 @@ class SafeSphereApp {
       onAnalyseRoom: async () => {
         soundFx.init();
         soundFx.resume();
-        soundFx.playHandScanChirp();
-        if (navigator.vibrate) navigator.vibrate(50);
         this.trainingManager.restart();
         this.ui.showFeedback('🔍 VR accident room re-aligned.');
       },
@@ -221,6 +240,10 @@ class SafeSphereApp {
           this.arTracker.cameraYaw = 0;
           this.arTracker.cameraPitch = 0;
           this.arTracker.cameraPos.set(0, 0.45, 1.2);
+        }
+        if (this.characterHands) {
+          this.characterHands.setVisible(false);
+          this.characterHands.setSqueezing(false);
         }
         this.trainingManager.restart();
       },
@@ -336,7 +359,7 @@ class SafeSphereApp {
 
     // 2. MOUSE / DESKTOP FIRST-PERSON VR INTERACTION
     window.addEventListener('mousedown', (e) => {
-      if (e.target.closest('.top-bar') || e.target.closest('#setup-options') || e.target.closest('.modal-card') || e.target.closest('#mobile-walk-pad') || e.target.closest('.hud-action-card') || e.target.closest('button')) return;
+      if (e.target.closest('.top-bar') || e.target.closest('#setup-options') || e.target.closest('.modal-card') || e.target.closest('#mobile-walk-pad') || e.target.closest('#mobile-action-pad') || e.target.closest('.hud-action-card') || e.target.closest('button')) return;
 
       const stage = this.trainingManager.currentStage;
       if (stage === TRAINING_STAGE.SETUP || stage === TRAINING_STAGE.PLACEMENT || stage === TRAINING_STAGE.INTRO) {
@@ -348,18 +371,22 @@ class SafeSphereApp {
       }
 
       if (stage === TRAINING_STAGE.INSTRUCTION || stage === TRAINING_STAGE.PICKUP) {
-        this.trainingManager.triggerPickup(this.camera.position, this.camera.quaternion, true);
-        this.ui.showFeedback('✅ Extinguisher grabbed! Pull safety pin (P key or tap).');
+        const success = this.trainingManager.triggerPickup(this.camera.position, this.camera.quaternion, true);
+        if (success && this.characterHands) this.characterHands.setVisible(true);
+        this.ui.showFeedback('✅ Extinguisher grabbed! Pull safety pin (P key or tap PIN).');
       } else if (stage === TRAINING_STAGE.PIN_PULL) {
-        this.trainingManager.triggerPinPull();
+        const success = this.trainingManager.triggerPinPull();
+        if (success && this.characterHands) this.characterHands.triggerPinPullAnimation();
         this.ui.showFeedback('✅ Safety pin pulled! Aim at base of fire.');
       } else if (stage === TRAINING_STAGE.SUPPRESSION || stage === TRAINING_STAGE.APPROACH_AIM) {
         this.trainingManager.setTouchSqueeze(true);
+        if (this.characterHands) this.characterHands.setSqueezing(true);
       }
     });
 
     window.addEventListener('mouseup', () => {
       this.trainingManager.setTouchSqueeze(false);
+      if (this.characterHands) this.characterHands.setSqueezing(false);
     });
 
     // 3. KEYBOARD SHORTCUTS FOR VR FIRST-PERSON GAMEPLAY
@@ -367,12 +394,15 @@ class SafeSphereApp {
       if (e.code === 'Space') {
         if (this.extinguisher.state === EXTINGUISHER_STATE.HELD) {
           this.trainingManager.setTouchSqueeze(true);
+          if (this.characterHands) this.characterHands.setSqueezing(true);
         }
       } else if (e.key === 'e' || e.key === 'E') {
-        this.trainingManager.triggerPickup(null, null, true);
-        this.ui.showFeedback('✅ Extinguisher grabbed! Pull safety pin (P).');
+        const success = this.trainingManager.triggerPickup(null, null, true);
+        if (success && this.characterHands) this.characterHands.setVisible(true);
+        this.ui.showFeedback('✅ Extinguisher grabbed! Pull safety pin (P key or tap PIN).');
       } else if (e.key === 'p' || e.key === 'P') {
-        this.trainingManager.triggerPinPull();
+        const success = this.trainingManager.triggerPinPull();
+        if (success && this.characterHands) this.characterHands.triggerPinPullAnimation();
         this.ui.showFeedback('✅ Safety pin pulled! Aim at base of fire.');
       } else if (e.key === 'r' || e.key === 'R') {
         this.camera.position.set(0, 0.45, 1.2);
@@ -381,6 +411,10 @@ class SafeSphereApp {
           this.arTracker.cameraYaw = 0;
           this.arTracker.cameraPitch = 0;
           this.arTracker.cameraPos.set(0, 0.45, 1.2);
+        }
+        if (this.characterHands) {
+          this.characterHands.setVisible(false);
+          this.characterHands.setSqueezing(false);
         }
         this.trainingManager.restart();
         this.ui.showFeedback('🔄 Mission restarted!');
@@ -393,6 +427,7 @@ class SafeSphereApp {
     window.addEventListener('keyup', (e) => {
       if (e.code === 'Space') {
         this.trainingManager.setTouchSqueeze(false);
+        if (this.characterHands) this.characterHands.setSqueezing(false);
       }
     });
   }
@@ -455,22 +490,29 @@ class SafeSphereApp {
       }
     }
 
-    // 3. Update held extinguisher pose in HELD state
+    // 3. Update held extinguisher pose and first-person character hands
     if (this.extinguisher.state === EXTINGUISHER_STATE.HELD) {
-      if (this.handTracker.isHandDetected) {
-        // Physical hand in camera view: anchor to real hand
-        this.extinguisher.updateHeldPose(
-          this.handTracker.handWorldPos,
-          this.handTracker.handWorldQuat,
-          delta
-        );
-      } else {
-        // First-person VR equipment rig: extinguisher moves with first-person view
-        const fpPos = new THREE.Vector3(0.18, -0.22, -0.50).applyMatrix4(this.camera.matrixWorld);
-        const fpQuat = this.camera.quaternion.clone();
-        this.extinguisher.group.position.lerp(fpPos, Math.min(1, delta * 18));
-        this.extinguisher.group.quaternion.slerp(fpQuat, Math.min(1, delta * 18));
+      if (this.characterHands && !this.characterHands.group.visible) {
+        this.characterHands.setVisible(true);
       }
+      // First-person VR equipment rig: extinguisher moves smoothly with first-person view
+      const fpPos = new THREE.Vector3(0.14, -0.21, -0.46).applyMatrix4(this.camera.matrixWorld);
+      const fpQuat = this.camera.quaternion.clone();
+      this.extinguisher.group.position.lerp(fpPos, Math.min(1, delta * 20));
+      this.extinguisher.group.quaternion.slerp(fpQuat, Math.min(1, delta * 20));
+    } else {
+      if (this.characterHands && this.characterHands.group.visible) {
+        this.characterHands.setVisible(false);
+      }
+    }
+
+    // Update Character Hands animation and walk bob
+    if (this.characterHands) {
+      const isMoving = this.arTracker && this.arTracker.moveInput &&
+        (this.arTracker.moveInput.forward || this.arTracker.moveInput.backward ||
+         this.arTracker.moveInput.left || this.arTracker.moveInput.right);
+      this.characterHands.setWalking(!!isMoving);
+      this.characterHands.update(delta, this.extinguisher);
     }
 
     // 4. Update Fire simulation physics & flame particles (only when deployed)

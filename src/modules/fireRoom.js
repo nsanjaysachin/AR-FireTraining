@@ -125,6 +125,42 @@ function createPosterTexture() {
   return tex;
 }
 
+function createBoardTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return new THREE.CanvasTexture(canvas);
+
+  // High-tech emergency status board
+  ctx.fillStyle = '#0B0F19';
+  ctx.fillRect(0, 0, 512, 256);
+  ctx.strokeStyle = '#38BDF8';
+  ctx.lineWidth = 6;
+  ctx.strokeRect(4, 4, 504, 248);
+
+  ctx.fillStyle = '#EF4444';
+  ctx.fillRect(10, 10, 492, 44);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = 'bold 22px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('⚠ SIMULATION BAY 04 — ACTIVE ACCIDENT', 256, 40);
+
+  ctx.fillStyle = '#38BDF8';
+  ctx.font = 'bold 18px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('SCENARIO: CLASS B FLAMMABLE LIQUID FIRE', 25, 95);
+  ctx.fillText('PROTOCOL: P.A.S.S. SUPPRESSION TECHNIQUE', 25, 135);
+  ctx.fillText('STANDOFF: 1.5 - 2.5 METERS FROM FLAME', 25, 175);
+
+  ctx.fillStyle = '#10B981';
+  ctx.fillText('EQUIPMENT: DRY CHEMICAL ABC EXTINGUISHER', 25, 220);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.needsUpdate = true;
+  return tex;
+}
+
 export class FireRoomEnvironment {
   constructor(scene) {
     this.scene = scene;
@@ -181,7 +217,7 @@ export class FireRoomEnvironment {
     scorchMesh.position.set(0, -0.297, -2.0);
     this.group.add(scorchMesh);
 
-    // 3. Walls (Back, Left, Right, Ceiling)
+    // 3. Walls (Back, Front, Left, Right, Ceiling) — Fully enclosed 3D room
     const wallMat = new THREE.MeshStandardMaterial({
       color: 0x2A323D,
       roughness: 0.85,
@@ -193,6 +229,13 @@ export class FireRoomEnvironment {
     const backWall = new THREE.Mesh(backWallGeo, wallMat);
     backWall.position.set(0, 1.6, -4.5);
     this.group.add(backWall);
+
+    // Front Wall (behind player)
+    const frontWallGeo = new THREE.PlaneGeometry(10, 3.8);
+    frontWallGeo.rotateY(Math.PI);
+    const frontWall = new THREE.Mesh(frontWallGeo, wallMat);
+    frontWall.position.set(0, 1.6, 4.5);
+    this.group.add(frontWall);
 
     // Left Wall
     const leftWallGeo = new THREE.PlaneGeometry(12, 3.8);
@@ -218,6 +261,18 @@ export class FireRoomEnvironment {
     const ceiling = new THREE.Mesh(ceilingGeo, ceilingMat);
     ceiling.position.set(0, 3.4, -0.5);
     this.group.add(ceiling);
+
+    // Ceiling smoke layer
+    const smokeCeilingGeo = new THREE.PlaneGeometry(9.6, 11);
+    smokeCeilingGeo.rotateX(Math.PI / 2);
+    this.ceilingSmokeMat = new THREE.MeshBasicMaterial({
+      color: 0x050709,
+      transparent: true,
+      opacity: 0.45
+    });
+    const smokeCeiling = new THREE.Mesh(smokeCeilingGeo, this.ceilingSmokeMat);
+    smokeCeiling.position.set(0, 3.25, -0.5);
+    this.group.add(smokeCeiling);
   }
 
   // Industrial workbench where the electrical / solvent fire accident occurred
@@ -323,6 +378,22 @@ export class FireRoomEnvironment {
     const alarmBox = new THREE.Mesh(alarmGeo, alarmMat);
     alarmBox.position.set(1.8, 1.35, -4.45);
     this.group.add(alarmBox);
+
+    // 4. Electronic Simulation Command Board on Right Wall
+    const boardGeo = new THREE.PlaneGeometry(2.4, 1.2);
+    boardGeo.rotateY(-Math.PI / 2);
+    const boardMat = new THREE.MeshBasicMaterial({
+      map: createBoardTexture(),
+      side: THREE.DoubleSide
+    });
+    const board = new THREE.Mesh(boardGeo, boardMat);
+    board.position.set(4.44, 1.6, -1.0);
+    this.group.add(board);
+
+    // Cyan board backlight
+    const boardLight = new THREE.PointLight(0x38BDF8, 0.6, 3.0);
+    boardLight.position.set(4.2, 1.6, -1.0);
+    this.group.add(boardLight);
   }
 
   // Overhead fluorescent fixtures with emergency short-circuit flicker

@@ -121,73 +121,24 @@ export class ARTrackingManager {
     }
   }
 
-  // Request camera and initialize AR
+  // Initialize pure 3D VR room game session (no camera needed)
   async startCameraAR() {
-    try {
-      this.trackingStatusMessage = 'Requesting camera permissions...';
+    this.mode = AR_SESSION_MODE.SIMULATOR_STUDIO;
+    this.isSessionActive = true;
+    this.isTrackingStable = true;
+    this.trackingStatusMessage = 'SafeSphere VR 3D Room Game Active';
+    if (this.simGrid) this.simGrid.visible = false;
 
-      // Insert video beneath canvas
-      if (!this.container.contains(this.video)) {
-        this.container.insertBefore(this.video, this.container.firstChild);
-      }
-
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('Camera access requires HTTPS or is not supported in this mobile browser.');
-      }
-
-      // Try environment-facing back camera first for realistic surrounding detection
-      let stream = null;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: 'environment' },
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          },
-          audio: false
-        });
-      } catch (envErr) {
-        console.warn('Environment camera unavailable, falling back to any video camera:', envErr);
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: false
-        });
-      }
-
-      this.stream = stream;
-      this.video.srcObject = this.stream;
-      await this.video.play();
-
-      this.mode = AR_SESSION_MODE.CAMERA_PASSTHROUGH_CV;
-      this.isSessionActive = true;
-      this.isTrackingStable = true;
-      this.trackingStatusMessage = 'Real Camera AR Active (Surroundings Detected)';
-      if (this.simGrid) this.simGrid.visible = false;
-
-      // Setup device orientation and motion if available on mobile
-      this.setupOrientationSensors();
-      this.setupMotionSensors();
-
-      return { success: true, mode: this.mode };
-    } catch (err) {
-      console.warn('Camera AR permission denied or not available:', err);
-      this.mode = AR_SESSION_MODE.SIMULATOR_STUDIO;
-      this.isSessionActive = true;
-      this.isTrackingStable = true;
-      this.trackingStatusMessage = 'Camera Unavailable: SafeSphere 3D Training Simulator Active';
-      if (this.simGrid) this.simGrid.visible = true;
-
-      // Remove video if failed
-      if (this.container.contains(this.video)) {
-        this.container.removeChild(this.video);
-      }
-
-      return {
-        success: false,
-        error: err.name === 'NotAllowedError' ? 'Camera permission was denied. Please allow camera access in browser settings.' : err.message,
-        fallbackMode: this.mode
-      };
+    // Ensure no video element is inserted
+    if (this.container && this.container.contains(this.video)) {
+      this.container.removeChild(this.video);
     }
+
+    // Setup device orientation and motion if available on mobile
+    this.setupOrientationSensors();
+    this.setupMotionSensors();
+
+    return { success: true, mode: this.mode };
   }
 
   setupOrientationSensors() {

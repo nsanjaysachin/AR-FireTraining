@@ -83,6 +83,32 @@ export class SafeSphereUI {
           </div>
         </div>
 
+        <!-- Mobile Action Trigger Buttons (Bottom-Right) -->
+        <div id="mobile-action-pad" class="mobile-action-pad hud-interactive">
+          <button id="btn-action-pickup" class="action-round-btn btn-grab" title="Grab Extinguisher">
+            <span class="btn-round-icon">✋</span>
+            <span class="btn-round-text">GRAB</span>
+          </button>
+          <button id="btn-action-pin" class="action-round-btn btn-pin" title="Pull Safety Pin">
+            <span class="btn-round-icon">📌</span>
+            <span class="btn-round-text">PIN</span>
+          </button>
+          <button id="btn-action-spray" class="action-round-btn btn-spray" title="Hold to Spray Foam">
+            <span class="btn-round-icon">💨</span>
+            <span class="btn-round-text">SPRAY</span>
+          </button>
+        </div>
+
+        <!-- Desktop Controls Hint Bar (Visible on desktop) -->
+        <div class="desktop-controls-bar hud-panel">
+          <span class="ctrl-item"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move</span>
+          <span class="ctrl-item"><kbd>Mouse</kbd> Aim</span>
+          <span class="ctrl-item"><kbd>E</kbd> Grab</span>
+          <span class="ctrl-item"><kbd>P</kbd> Pin</span>
+          <span class="ctrl-item"><kbd>Space</kbd> / <kbd>Click</kbd> Spray</span>
+          <span class="ctrl-item"><kbd>R</kbd> Restart</span>
+        </div>
+
         <!-- Bottom Minimal Live Guidance & Options Section -->
         <div class="hud-bottom-section">
           <!-- Primary Actions -->
@@ -97,7 +123,7 @@ export class SafeSphereUI {
 
           <div class="guidance-pill hud-panel hud-interactive">
             <span id="stage-badge" class="guidance-tag">STEP 1</span>
-            <span id="guidance-instruction" class="guidance-text">Walk to extinguisher & click or reach hand to grab</span>
+            <span id="guidance-instruction" class="guidance-text">Walk to extinguisher & press [E] or tap GRAB</span>
             <span id="spray-active-tag" class="spray-active-tag">🔴 DISCHARGING</span>
           </div>
           <div id="feedback-banner" class="feedback-banner"></div>
@@ -173,6 +199,49 @@ export class SafeSphereUI {
       btnRestart.addEventListener('click', handleRestart);
       btnRestart.addEventListener('touchend', handleRestart, { passive: false });
       btnRestart.addEventListener('pointerup', handleRestart);
+    }
+
+    // Mobile Action Pad Buttons
+    const btnActPickup = document.getElementById('btn-action-pickup');
+    if (btnActPickup) {
+      btnActPickup.addEventListener('click', (e) => {
+        if (e) e.stopPropagation();
+        if (this.callbacks.onPickupExtinguisher) this.callbacks.onPickupExtinguisher();
+      });
+      btnActPickup.addEventListener('touchend', (e) => {
+        if (e) { e.stopPropagation(); if (e.cancelable) e.preventDefault(); }
+        if (this.callbacks.onPickupExtinguisher) this.callbacks.onPickupExtinguisher();
+      });
+    }
+
+    const btnActPin = document.getElementById('btn-action-pin');
+    if (btnActPin) {
+      btnActPin.addEventListener('click', (e) => {
+        if (e) e.stopPropagation();
+        if (this.callbacks.onPinPull) this.callbacks.onPinPull();
+      });
+      btnActPin.addEventListener('touchend', (e) => {
+        if (e) { e.stopPropagation(); if (e.cancelable) e.preventDefault(); }
+        if (this.callbacks.onPinPull) this.callbacks.onPinPull();
+      });
+    }
+
+    const btnActSpray = document.getElementById('btn-action-spray');
+    if (btnActSpray) {
+      const startSpray = (e) => {
+        if (e) { e.stopPropagation(); if (e.cancelable) e.preventDefault(); }
+        if (this.callbacks.onSprayHold) this.callbacks.onSprayHold(true);
+      };
+      const stopSpray = (e) => {
+        if (e) { e.stopPropagation(); if (e.cancelable) e.preventDefault(); }
+        if (this.callbacks.onSprayHold) this.callbacks.onSprayHold(false);
+      };
+      btnActSpray.addEventListener('pointerdown', startSpray);
+      btnActSpray.addEventListener('pointerup', stopSpray);
+      btnActSpray.addEventListener('pointercancel', stopSpray);
+      btnActSpray.addEventListener('pointerleave', stopSpray);
+      btnActSpray.addEventListener('touchstart', startSpray, { passive: false });
+      btnActSpray.addEventListener('touchend', stopSpray, { passive: false });
     }
 
     // 3. Mobile Walk Pad Buttons (▲ ▼ ◀ ▶)

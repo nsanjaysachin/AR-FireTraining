@@ -437,9 +437,121 @@ canvas {
   transform: scale(0.92);
 }
 
+/* Mobile Action Buttons (Right side on mobile) */
+.mobile-action-pad {
+  position: absolute;
+  bottom: 24px;
+  right: 16px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: auto;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.action-round-btn {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  touch-action: manipulation;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  transition: transform 0.1s, box-shadow 0.15s;
+}
+
+.action-round-btn:active {
+  transform: scale(0.92);
+}
+
+.btn-round-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.btn-round-text {
+  font-size: 0.62rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  margin-top: 2px;
+  letter-spacing: 0.5px;
+}
+
+.btn-grab {
+  background: rgba(16, 185, 129, 0.25);
+  border-color: rgba(16, 185, 129, 0.6);
+  color: #34D399;
+}
+.btn-grab:active {
+  background: rgba(16, 185, 129, 0.5);
+}
+
+.btn-pin {
+  background: rgba(245, 158, 11, 0.25);
+  border-color: rgba(245, 158, 11, 0.6);
+  color: #FBBF24;
+}
+.btn-pin:active {
+  background: rgba(245, 158, 11, 0.5);
+}
+
+.btn-spray {
+  background: rgba(239, 68, 68, 0.35);
+  border-color: rgba(239, 68, 68, 0.8);
+  color: #FCA5A5;
+  width: 66px;
+  height: 66px;
+}
+.btn-spray:active {
+  background: rgba(239, 68, 68, 0.7);
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.9);
+}
+
+/* Desktop Controls Bar */
+.desktop-controls-bar {
+  display: none;
+  position: absolute;
+  top: 68px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(13, 17, 23, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  padding: 6px 18px;
+  gap: 14px;
+  align-items: center;
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  color: #94A3B8;
+  z-index: 25;
+  backdrop-filter: blur(8px);
+}
+
+.desktop-controls-bar kbd {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: #38BDF8;
+  font-weight: 700;
+  font-size: 0.7rem;
+}
+
 @media (min-width: 1024px) {
-  .mobile-walk-pad {
-    display: none; /* Hidden on desktop since WASD keys are available */
+  .mobile-walk-pad,
+  .mobile-action-pad {
+    display: none; /* Hidden on desktop since keyboard/mouse is active */
+  }
+  .desktop-controls-bar {
+    display: flex;
   }
 }
 
