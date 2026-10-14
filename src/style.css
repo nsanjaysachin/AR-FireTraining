@@ -177,13 +177,106 @@ canvas {
   border: 1px solid var(--panel-border);
 }
 
-/* Mid-Section: PASS protocol & Hazard gauges */
+/* Mid-Section: Compact PASS and Hazard gauges */
 .hud-mid-row {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   width: 100%;
-  margin-top: 12px;
+  margin-top: 8px;
+}
+
+/* Compact PASS Pills */
+.pass-mini-group {
+  display: flex;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+.pass-mini-pill {
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  background: #161B22;
+  border: 1px solid var(--panel-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.pass-mini-active {
+  background: var(--safety-red);
+  border-color: #B71C1C;
+  color: #FFFFFF;
+  box-shadow: 0 0 8px rgba(211, 47, 47, 0.4);
+}
+
+.pass-mini-done {
+  background: var(--safety-green);
+  border-color: #2EA043;
+  color: #FFFFFF;
+}
+
+/* Minimal Hazard Panel */
+.hazard-mini-panel {
+  padding: 6px 12px;
+  border-radius: 6px;
+  min-width: 140px;
+}
+
+.hazard-mini-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.dist-tag {
+  color: #38BDF8;
+  font-size: 0.68rem;
+}
+
+.status-indicator-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--safety-red);
+  box-shadow: 0 0 6px var(--safety-red);
+}
+
+/* Single Minimal Guidance Pill */
+.guidance-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  background: rgba(13, 17, 23, 0.9);
+  border: 1px solid var(--panel-border);
+}
+
+.guidance-tag {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--safety-red);
+  letter-spacing: 0.5px;
+}
+
+.guidance-text {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #FFFFFF;
 }
 
 /* Left: PASS Checklist Card */

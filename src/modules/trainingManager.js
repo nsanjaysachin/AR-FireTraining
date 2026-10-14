@@ -27,63 +27,84 @@ export class TrainingManager {
     this.elapsedSessionTime = 0;
     this.touchSqueezeActive = false;
 
-    // Guidance text mappings
+    // Minimalist guidance directives
     this.stagePrompts = {
       [TRAINING_STAGE.INTRO]: {
-        title: 'SafeSphere Live AR Fire Training',
-        instruction: 'Tap "START AR FIRE TRAINING" to begin live spatial tracking.',
-        badge: 'READY'
+        badge: 'SCANNING',
+        instruction: 'Move phone to scan room floor'
       },
       [TRAINING_STAGE.SETUP]: {
-        title: 'Calibrating Camera AR',
-        instruction: 'Point device at floor/table. Camera tracking active.',
-        badge: 'TRACKING'
+        badge: 'SCANNING',
+        instruction: 'Move phone to scan room floor'
       },
       [TRAINING_STAGE.PLACEMENT]: {
-        title: 'Extinguisher Anchored in Room',
-        instruction: 'Extinguisher and fire scenario anchored in physical space.',
-        badge: 'ANCHORED'
+        badge: 'DEPLOY',
+        instruction: '✋ Show hand to camera to deploy fire scenario'
       },
       [TRAINING_STAGE.INSTRUCTION]: {
-        title: 'Step 1: Reach for Extinguisher',
-        instruction: 'Reach your hand toward the extinguisher handle to pick it up.',
-        badge: 'REACH HANDLE'
+        badge: 'PICKUP',
+        instruction: 'Reach hand or tap extinguisher to pick up'
       },
       [TRAINING_STAGE.PICKUP]: {
-        title: 'Grasp the Handle',
-        instruction: 'Close your hand (or tap extinguisher) to pick it up.',
-        badge: 'GRAB HANDLE'
+        badge: 'GRAB',
+        instruction: 'Reach hand or tap extinguisher to pick up'
       },
       [TRAINING_STAGE.PIN_PULL]: {
-        title: 'PASS Step 1: Pull Safety Pin (P)',
-        instruction: 'Pinch the yellow pin in camera or tap it on screen to unlock.',
-        badge: 'P — PULL PIN'
+        badge: 'P — PIN',
+        instruction: 'Pull yellow safety pin'
       },
       [TRAINING_STAGE.APPROACH_AIM]: {
-        title: 'PASS Step 2: Aim at Base (A)',
-        instruction: 'Point phone / nozzle directly at the FUEL BASE of the fire.',
-        badge: 'A — AIM BASE'
+        badge: 'A — AIM',
+        instruction: 'Aim nozzle at fuel base of fire'
       },
       [TRAINING_STAGE.SUPPRESSION]: {
-        title: 'PASS Step 3 & 4: Squeeze & Sweep (S)',
-        instruction: 'Hold phone screen (or clench fist) to spray. SWEEP side to side!',
-        badge: 'S — SQUEEZE & SWEEP'
+        badge: 'S — SPRAY',
+        instruction: 'Hold screen to spray • Sweep side-to-side'
       },
       [TRAINING_STAGE.COMPLETION]: {
-        title: 'Fire Neutralized — Complete!',
-        instruction: 'Fire extinguished successfully. Performance report generated.',
-        badge: 'EVALUATION'
+        badge: 'EXTINGUISHED',
+        instruction: 'Fire extinguished successfully'
       }
     };
   }
 
-  startTraining() {
+  // 1. Initial room floor scanning phase (No fire or extinguisher yet)
+  startRoomScanning() {
+    this.extinguisher.group.visible = false;
+    this.fire.group.visible = false;
+    if (this.arTracker && this.arTracker.reticleGroup) {
+      this.arTracker.reticleGroup.visible = true;
+    }
+    this.isActive = false;
+    this.setStage(TRAINING_STAGE.SETUP);
+  }
+
+  // 2. Deploy fire emergency scenario after room and hand are analyzed
+  deployFireScenario() {
+    soundFx.init();
+    soundFx.resume();
+    soundFx.playCalibrationSuccess();
+    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+
+    // Position extinguisher and fire right in front of user in their scanned room
+    if (this.arTracker) {
+      this.arTracker.repositionAnchor(this.extinguisher, this.fire);
+      if (this.arTracker.reticleGroup) {
+        this.arTracker.reticleGroup.visible = false;
+      }
+    }
+
+    this.extinguisher.group.visible = true;
+    this.fire.group.visible = true;
     this.isActive = true;
     this.elapsedSessionTime = 0;
     this.evaluator.startSession();
-    soundFx.init();
     soundFx.startFireSound();
     this.setStage(TRAINING_STAGE.INSTRUCTION);
+  }
+
+  startTraining() {
+    this.deployFireScenario();
   }
 
   setStage(newStage) {
@@ -250,6 +271,11 @@ export class TrainingManager {
     this.extinguisher.reset();
     this.fire.reset();
     this.spray.reset();
+    this.extinguisher.group.visible = true;
+    this.fire.group.visible = true;
+    if (this.arTracker && this.arTracker.reticleGroup) {
+      this.arTracker.reticleGroup.visible = false;
+    }
     this.evaluator.startSession();
     this.elapsedSessionTime = 0;
     this.isActive = true;
